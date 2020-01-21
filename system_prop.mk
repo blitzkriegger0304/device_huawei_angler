@@ -92,7 +92,9 @@ PRODUCT_PROPERTY_OVERRIDES += \
     persist.radio.data_no_toggle=1 \
     persist.radio.data_con_rprt=true \
     persist.radio.redir_party_num=0 \
-    persist.data.mode=concurrent
+    persist.data.mode=concurrent \
+    ro.ril.force_eri_from_xml=true \
+    ro.telephony.get_imsi_from_sim=true
 
 # Shipping API
 # ro.product.first_api_level indicates the first api level the device has commercially launched on.
@@ -110,6 +112,10 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.telephony.default_network=10 \
     telephony.lteOnCdmaDevice=1 \
     ro.telephony.call_ring.multiple=0
+
+# Tethering without provisioning app
+PRODUCT_PROPERTY_OVERRIDES += \
+    net.tethering.noprovisioning=true
 
 # Wifi calling
 PRODUCT_PROPERTY_OVERRIDES += \
