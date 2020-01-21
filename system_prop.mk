@@ -71,6 +71,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
 
 # Media
 PRODUCT_PROPERTY_OVERRIDES += \
+    debug.stagefright.ccodec=0 \
     persist.media.treble_omx=false \
     media.aac_51_output_enabled=true \
     media.recorder.show_manufacturer_and_model=true \
