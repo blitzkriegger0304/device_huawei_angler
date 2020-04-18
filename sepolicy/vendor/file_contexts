@@ -19,6 +19,8 @@
 
 /dev/rmnet_ctrl[0-9]*          u:object_r:rmnet_device:s0
 
+/dev/stune(/.*)?                                u:object_r:cgroup:s0
+
 # shared memory drivers
 /dev/smdcntl[0-9]              u:object_r:radio_device:s0
 
@@ -31,6 +33,7 @@
 /dev/v4l-subdev[0-9]+          u:object_r:video_device:s0
 
 # Sensor Hub kernel driver
+/dev/sensors                                    u:object_r:sensors_device:s0
 /dev/spich                                      u:object_r:sensors_device:s0
 /dev/nanohub                                    u:object_r:sensors_device:s0
 /dev/nanohub_comms                              u:object_r:sensors_device:s0
