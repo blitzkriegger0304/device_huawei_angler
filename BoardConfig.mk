@@ -183,4 +183,7 @@ BOARD_SUPPRESS_SECURE_ERASE := true
 
 TARGET_FLATTEN_APEX := true
 
+# Security patch level
+VENDOR_SECURITY_PATCH := 2021-05-05
+
 -include vendor/huawei/angler/BoardConfigVendor.mk
