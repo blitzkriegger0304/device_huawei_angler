@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2015 The Android Open-Source Project
+# Copyright (C) 2020 The LineageOS Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -401,7 +401,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
 
 # Write Manufacturer & Model information in created media files.
 # IMPORTANT: ONLY SET THIS PROPERTY TO TRUE FOR PUBLIC DEVICES
-ifneq ($(filter aosp_angler% angler%, $(TARGET_PRODUCT)),)
+ifneq ($(filter lineage_angler% angler%, $(TARGET_PRODUCT)),)
 PRODUCT_PROPERTY_OVERRIDES += \
     media.recorder.show_manufacturer_and_model=true
 else
@@ -550,10 +550,10 @@ PRODUCT_PROPERTY_OVERRIDES += \
 
 # Modem debugger
 ifneq (,$(filter userdebug eng, $(TARGET_BUILD_VARIANT)))
-ifeq (,$(filter aosp_angler, $(TARGET_PRODUCT)))
+ifeq (,$(filter lineage_angler, $(TARGET_PRODUCT)))
 PRODUCT_PACKAGES += \
     NexusLogger
-endif # aosp_angler
+endif # lineage_angler
 
 PRODUCT_COPY_FILES += \
     device/huawei/angler/init.angler.diag.rc.userdebug:root/init.angler.diag.rc
