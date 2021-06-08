@@ -163,9 +163,6 @@ on post-fs
     # Allow writing to the kernel trace log.
     chmod 0222 /sys/kernel/debug/tracing/trace_marker 
 
-    # hack to start loading framework
-    setprop vold.decrypt trigger_restart_framework
-
 on property:init.svc.per_mgr=running
     start per_proxy
 
