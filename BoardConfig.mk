@@ -67,6 +67,7 @@ AUDIO_FEATURE_ENABLED_DSM_FEEDBACK := true
 BOARD_HAVE_BLUETOOTH := true
 BOARD_HAVE_BLUETOOTH_BCM := true
 BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := device/huawei/angler/bluetooth
+BOARD_CUSTOM_BT_CONFIG := device/huawei/angler/bluetooth/vnd_angler.txt
 
 BOARD_USES_SECURE_SERVICES := true
 
