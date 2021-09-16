@@ -4,7 +4,7 @@
 # specify MF_CHECK, and must come before any filesystems that do specify MF_CHECK
 
 /dev/block/bootdevice/by-name/system       /               ext4    ro,barrier=1,inode_readahead_blks=8                             wait
-/dev/block/bootdevice/by-name/vendor       /vendor         ext4    ro,barrier=1,inode_readahead_blks=8                             wait
+/dev/block/bootdevice/by-name/vendor       /vendor        squashfs ro,barrier=1,inode_readahead_blks=8                             wait
 /dev/block/bootdevice/by-name/userdata     /data           ext4    noatime,nosuid,nodev,barrier=1,data=ordered,nomblk_io_submit,noauto_da_alloc,errors=panic,inode_readahead_blks=8 wait,check,formattable,latemount,fileencryption=aes-256-xts:aes-256-cts
 /dev/block/bootdevice/by-name/cache        /cache          ext4    noatime,nosuid,nodev,barrier=1,data=ordered,nomblk_io_submit,noauto_da_alloc,errors=panic wait,check
 /dev/block/bootdevice/by-name/persist      /persist        ext4    noatime,nosuid,nodev,barrier=1,data=ordered,nodelalloc,nomblk_io_submit,errors=panic wait,notrim
@@ -20,9 +20,9 @@
 /dev/block/bootdevice/by-name/rpm          /rpm            emmc    defaults                                                        defaults
 /dev/block/bootdevice/by-name/sdi          /sdi            emmc    defaults                                                        defaults
 /dev/block/bootdevice/by-name/aboot        /aboot          emmc    defaults                                                        defaults
-#/dev/block/bootdevice/by-name/imgdata      /imgdata        emmc    defaults                                                        defaults
+#/dev/block/bootdevice/by-name/imgdata     /imgdata        emmc    defaults                                                        defaults
 /dev/block/bootdevice/by-name/frp          /persistent     emmc    defaults                                                        defaults
-/dev/block/bootdevice/by-name/keymaster    /keymaster     emmc    defaults                                                        defaults
-/dev/block/bootdevice/by-name/cmnlib       /cmnlib        emmc    defaults                                                        defaults
+/dev/block/bootdevice/by-name/keymaster    /keymaster      emmc    defaults                                                        defaults
+/dev/block/bootdevice/by-name/cmnlib       /cmnlib         emmc    defaults                                                        defaults
 /devices/*/xhci-hcd.0.auto/usb*                               auto           auto    defaults                                                        voldmanaged=usb:auto
 /dev/block/zram0                                              none           swap    defaults                                                        zramsize=533413200,notrim
