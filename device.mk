@@ -587,6 +587,10 @@ PRODUCT_PACKAGES += \
     gatekeeper.msm8994 \
     keystore.msm8994
 
+# General support
+PRODUCT_PACKAGES += \
+    libtinyxml
+
 # only include verity on user builds for lineage
 ifeq ($(TARGET_BUILD_VARIANT),user)
   PRODUCT_COPY_FILES += device/huawei/angler/fstab-verity.angler:root/fstab.angler
