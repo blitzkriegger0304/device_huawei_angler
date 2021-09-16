@@ -334,13 +334,12 @@ PRODUCT_PACKAGES += \
 
 # Power HAL
 PRODUCT_PACKAGES += \
-    power.angler \
-    android.hardware.power@1.0-impl \
+    android.hardware.power@1.1-service.angler
 
 # Thermal HAL
-#PRODUCT_PACKAGES += \
-#    thermal.angler \
-#    android.hardware.thermal@1.0-impl
+PRODUCT_PACKAGES += \
+    thermal.angler \
+    android.hardware.thermal@2.0-service.mock
 
 #GNSS HAL
 PRODUCT_PACKAGES += \
