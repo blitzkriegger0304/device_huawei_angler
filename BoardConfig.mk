@@ -32,13 +32,11 @@ TARGET_2ND_CPU_ABI2 := armeabi
 TARGET_2ND_CPU_VARIANT := cortex-a53.a57
 
 # Inline kernel building
-BOARD_KERNEL_IMAGE_NAME := Image.gz-dtb
+KERNEL_TOOLCHAIN_PREFIX := aarch64-linux-android-
 TARGET_KERNEL_SOURCE := kernel/huawei/angler
 TARGET_KERNEL_CONFIG := lineageos_angler_defconfig
-
-TARGET_KERNEL_ARCH := arm64
-TARGET_KERNEL_HEADER_ARCH := arm64
-TARGET_KERNEL_CROSS_COMPILE_PREFIX := aarch64-linux-android-
+BOARD_KERNEL_IMAGE_NAME := Image.gz-dtb
+TARGET_NOT_USE_GZIP_RECOVERY_RAMDISK := true
 
 TARGET_COMPILE_WITH_MSM_KERNEL := true
 
