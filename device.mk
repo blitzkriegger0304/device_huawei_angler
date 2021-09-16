@@ -22,6 +22,8 @@
 # Enable support for chinook sensorhub
 TARGET_USES_CHINOOK_SENSORHUB := false
 
+PRODUCT_SHIPPING_API_LEVEL := 23
+
 PRODUCT_COPY_FILES += \
     device/huawei/angler/init.angler.rc:root/init.angler.rc \
     device/huawei/angler/init.angler.usb.rc:root/init.angler.usb.rc \
@@ -542,10 +544,6 @@ PRODUCT_PROPERTY_OVERRIDES += \
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
     ro.oem_unlock_supported=1
 
-# ro.product.first_api_level indicates the first api level the device has commercially launched on.
-PRODUCT_PROPERTY_OVERRIDES += \
-    ro.product.first_api_level=23
-
 # setup dalvik vm configs.
 $(call inherit-product, frameworks/native/build/phone-xhdpi-2048-dalvik-heap.mk)
 
@@ -573,13 +571,6 @@ PRODUCT_COPY_FILES += \
 # only include verity on user builds for lineage
 ifeq ($(TARGET_BUILD_VARIANT),user)
   PRODUCT_COPY_FILES += device/huawei/angler/fstab-verity.angler:root/fstab.angler
-
-  # setup dm-verity configs.
-  PRODUCT_SYSTEM_VERITY_PARTITION := /dev/block/platform/soc.0/f9824900.sdhci/by-name/system
-  # don't check verity on vendor partition as we don't compile it with the boot and system image
-  # PRODUCT_VENDOR_VERITY_PARTITION := /dev/block/platform/soc.0/f9824900.sdhci/by-name/vendor
-  $(call inherit-product, build/target/product/verity.mk)
-endif
 
 # b/29995499
 $(call add-product-sanitizer-module-config,cameraserver,never)
