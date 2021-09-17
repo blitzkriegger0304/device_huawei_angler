@@ -158,9 +158,6 @@ on post-fs
     # Allow writing to the kernel trace log.
     chmod 0222 /sys/kernel/debug/tracing/trace_marker 
 
-    # hack to start loading framework
-    setprop vold.decrypt trigger_restart_framework
-
     # TapToWake
     chown system system /sys/devices/soc.0/f9924000.i2c/i2c-2/2-0070/input/input0/wake_gesture
 
@@ -307,7 +304,7 @@ on property:sys.boot_completed=1
     write /dev/cpuset/system-background/cpus 0-2
     write /dev/cpuset/top-app/cpus 0-7
     write /dev/cpuset/restricted/cpus 0-3
-    
+
      #allow CPUs to go in deeper idle state than C0
      write /sys/module/lpm_levels/parameters/sleep_disabled 0
      #end boot time fs tune
