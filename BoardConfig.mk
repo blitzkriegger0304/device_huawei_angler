@@ -146,8 +146,9 @@ TARGET_RELEASETOOLS_EXTENSIONS := device/huawei/angler
 
 BOARD_ROOT_EXTRA_FOLDERS := firmware persist
 
-BOARD_SEPOLICY_DIRS += \
-	device/huawei/angler/sepolicy
+BOARD_SEPOLICY_DIRS += device/huawei/angler/sepolicy/vendor
+
+BOARD_PLAT_PRIVATE_SEPOLICY_DIR += device/huawei/angler/sepolicy/private
 
 TARGET_USES_64_BIT_BINDER := true
 
