@@ -29,7 +29,7 @@ PRODUCT_COPY_FILES += \
     device/huawei/angler/init.angler.usb.rc:root/init.angler.usb.rc \
     device/huawei/angler/fstab.angler:root/fstab.angler \
     device/huawei/angler/ueventd.angler.rc:root/ueventd.angler.rc \
-    device/huawei/angler/init.recovery.angler.rc:root/init.recovery.angler.rc \
+    device/huawei/angler/init.recovery.angler.rc:recovery/root/system/etc/init/hw/init.recovery.angler.rc \
     device/huawei/angler/init.angler.power.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.angler.power.sh \
     device/huawei/angler/uinput-fpc.kl:$(TARGET_COPY_OUT_SYSTEM)/usr/keylayout/uinput-fpc.kl \
     device/huawei/angler/uinput-fpc.idc:$(TARGET_COPY_OUT_SYSTEM)/usr/idc/uinput-fpc.idc \
@@ -358,7 +358,7 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     timekeep \
     TimeKeep
-    
+
 #USB HAL
 PRODUCT_PACKAGES += \
     android.hardware.usb@1.0-service
