@@ -81,7 +81,7 @@ TARGET_NO_RADIOIMAGE := true
 TARGET_BOARD_INFO_FILE := device/huawei/angler/board-info.txt
 TARGET_NO_RPC := true
 
-BOARD_EGL_CFG := device/huawei/angler/egl.cfg
+BOARD_EGL_CFG := device/huawei/angler/configs/egl.cfg
 
 # Shader cache config options
 # Maximum size of the  GLES Shaders that can be cached for reuse.
@@ -140,7 +140,7 @@ TARGET_USES_MKE2FS := true
 
 TARGET_AUX_OS_VARIANT_LIST := angler
 
-TARGET_RECOVERY_FSTAB = device/huawei/angler/recovery.fstab
+TARGET_RECOVERY_FSTAB = device/huawei/angler/rootdir/etc/recovery.fstab
 # write vendor modules to system
 TARGET_COPY_OUT_VENDOR := system
 TARGET_RELEASETOOLS_EXTENSIONS := device/huawei/angler
