@@ -19,6 +19,8 @@
 
 /dev/rmnet_ctrl[0-9]*          u:object_r:rmnet_device:s0
 
+/dev/stune(/.*)?               u:object_r:cgroup:s0
+
 # shared memory drivers
 /dev/smdcntl[0-9]              u:object_r:radio_device:s0
 
