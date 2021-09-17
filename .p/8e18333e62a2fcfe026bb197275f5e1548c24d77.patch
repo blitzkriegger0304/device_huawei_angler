@@ -1,0 +1,80 @@
+From 8e18333e62a2fcfe026bb197275f5e1548c24d77 Mon Sep 17 00:00:00 2001
+From: Giuseppe Maggio <jertlokk@gmail.com>
+Date: Tue, 1 Jan 2019 15:52:55 +0000
+Subject: [PATCH] angler: QCamera: compile Camera HAL with clang
+
+Change-Id: Ia5da27a288b3d413c2b68016e0665de098e068ed
+---
+ camera/QCamera2/Android.mk                           | 4 ++--
+ camera/QCamera2/stack/mm-camera-interface/Android.mk | 4 ++--
+ camera/QCamera2/stack/mm-camera-test/Android.mk      | 4 ++--
+ camera/QCamera2/stack/mm-jpeg-interface/Android.mk   | 4 ++--
+ 4 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/camera/QCamera2/Android.mk b/camera/QCamera2/Android.mk
+index 433b343..3b397d8 100644
+--- a/camera/QCamera2/Android.mk
++++ b/camera/QCamera2/Android.mk
+@@ -4,8 +4,8 @@ LOCAL_PATH:= $(call my-dir)
+ 
+ include $(CLEAR_VARS)
+ 
+-# Too many clang warnings/errors, see b/23163853.
+-LOCAL_CLANG := false
++
++LOCAL_CLANG := true
+ 
+ LOCAL_SRC_FILES := \
+         util/QCameraCmdThread.cpp \
+diff --git a/camera/QCamera2/stack/mm-camera-interface/Android.mk b/camera/QCamera2/stack/mm-camera-interface/Android.mk
+index 8558581..2dc6abe 100644
+--- a/camera/QCamera2/stack/mm-camera-interface/Android.mk
++++ b/camera/QCamera2/stack/mm-camera-interface/Android.mk
+@@ -4,8 +4,8 @@ LOCAL_PATH := $(call my-dir)
+ include $(LOCAL_PATH)/../../../common.mk
+ include $(CLEAR_VARS)
+ 
+-# Too many clang warnings/errors, see b/23163853.
+-LOCAL_CLANG := false
++
++LOCAL_CLANG := true
+ LOCAL_CXX_STL := none
+ 
+ MM_CAM_FILES := \
+diff --git a/camera/QCamera2/stack/mm-camera-test/Android.mk b/camera/QCamera2/stack/mm-camera-test/Android.mk
+index a9bf3cb..bb9bd5d 100644
+--- a/camera/QCamera2/stack/mm-camera-test/Android.mk
++++ b/camera/QCamera2/stack/mm-camera-test/Android.mk
+@@ -6,7 +6,7 @@ include $(LOCAL_PATH)/../../../common.mk
+ include $(CLEAR_VARS)
+ 
+ # b/24171136 many files not compiling with clang/llvm yet
+-LOCAL_CLANG := false
++LOCAL_CLANG := true
+ LOCAL_CXX_STL := none
+ 
+ LOCAL_CFLAGS:= \
+@@ -118,7 +118,7 @@ include $(BUILD_EXECUTABLE)
+ include $(CLEAR_VARS)
+ 
+ # b/24171136 many files not compiling with clang/llvm yet
+-LOCAL_CLANG := false
++LOCAL_CLANG := true
+ LOCAL_CXX_STL := none
+ 
+ LOCAL_CFLAGS:= \
+diff --git a/camera/QCamera2/stack/mm-jpeg-interface/Android.mk b/camera/QCamera2/stack/mm-jpeg-interface/Android.mk
+index 344e74b..12c9313 100644
+--- a/camera/QCamera2/stack/mm-jpeg-interface/Android.mk
++++ b/camera/QCamera2/stack/mm-jpeg-interface/Android.mk
+@@ -4,8 +4,8 @@ LOCAL_PATH := $(call my-dir)
+ include $(LOCAL_PATH)/../../../common.mk
+ include $(CLEAR_VARS)
+ 
+-# Too many clang warnings/errors, see b/23163853.
+-LOCAL_CLANG := false
++
++LOCAL_CLANG := true
+ LOCAL_CXX_STL := none
+ 
+ LOCAL_32_BIT_ONLY := $(BOARD_QTI_CAMERA_32BIT_ONLY)

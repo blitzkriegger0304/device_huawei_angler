@@ -1,0 +1,20 @@
+From d8811f32e7cc710aa9bf6fa355153b0fe640d9d9 Mon Sep 17 00:00:00 2001
+From: razorloves <razorloves@gmail.com>
+Date: Sat, 2 Sep 2017 05:29:41 +0000
+Subject: [PATCH] The qmuxd binary is on /vendor, not /system.
+
+Change-Id: I74fe24546f474cee5161e7868273fd7013be71f8
+---
+ config.fs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/config.fs b/config.fs
+index 3941aa8..810cf3b 100644
+--- a/config.fs
++++ b/config.fs
+@@ -1,4 +1,4 @@
+-[system/bin/qmuxd]
++[vendor/bin/qmuxd]
+ mode: 0700
+ user: AID_RADIO
+ group: AID_SHELL

@@ -1,0 +1,516 @@
+From 31588ac63b5c78d261edb7b6103034333ea96ffd Mon Sep 17 00:00:00 2001
+From: Giuseppe Maggio <jertlokk@gmail.com>
+Date: Fri, 12 Oct 2018 18:51:32 +0200
+Subject: [PATCH] angler: SELinux bring up
+
+Change-Id: I1855664b96dc9d2a09e1fd27e412202a24bc8f6a
+---
+ sepolicy/audioserver.te                   |  2 ++
+ sepolicy/bootanim.te                      |  1 +
+ sepolicy/dnsmasq.te                       |  1 +
+ sepolicy/file.te                          | 21 +++++++++++++
+ sepolicy/file_contexts                    | 24 +++++++++++++++
+ sepolicy/fsck.te                          |  1 +
+ sepolicy/hal_contexthub_default.te        |  2 ++
+ sepolicy/hal_fingerprint_default.te       |  2 ++
+ sepolicy/hal_graphics_allocator.te        |  6 +++-
+ sepolicy/hal_graphics_composer_default.te | 18 +++++++++++
+ sepolicy/healthd.te                       |  8 +++++
+ sepolicy/init-mcfg-sh.te                  |  3 ++
+ sepolicy/init.te                          | 37 +++++++++++++++++++++++
+ sepolicy/netd.te                          |  5 +++
+ sepolicy/netmgrd.te                       |  2 +-
+ sepolicy/nfc.te                           |  3 ++
+ sepolicy/perfd.te                         |  2 +-
+ sepolicy/platform_app.te                  |  2 ++
+ sepolicy/private/storaged.te              |  2 ++
+ sepolicy/qmux.te                          |  4 +++
+ sepolicy/radio.te                         |  2 ++
+ sepolicy/rild.te                          |  1 +
+ sepolicy/rmt.te                           |  4 +++
+ sepolicy/sdcardd.te                       |  1 +
+ sepolicy/ssr.te                           |  1 +
+ sepolicy/surfaceflinger.te                |  6 ++++
+ sepolicy/system_app.te                    |  7 +++++
+ sepolicy/system_server.te                 |  8 +++++
+ sepolicy/tee.te                           |  3 ++
+ sepolicy/thermald.te                      |  4 +++
+ sepolicy/ueventd.te                       |  2 ++
+ sepolicy/usbd.te                          |  2 ++
+ sepolicy/vndservice.te                    |  1 +
+ sepolicy/vndservice_contexts              |  1 +
+ sepolicy/vndservicemanager.te             |  4 +++
+ sepolicy/vold_prepare_subdirs.te          |  1 +
+ 36 files changed, 191 insertions(+), 3 deletions(-)
+ create mode 100644 sepolicy/bootanim.te
+ create mode 100644 sepolicy/dnsmasq.te
+ create mode 100644 sepolicy/fsck.te
+ create mode 100644 sepolicy/hal_contexthub_default.te
+ create mode 100644 sepolicy/hal_fingerprint_default.te
+ create mode 100644 sepolicy/hal_graphics_composer_default.te
+ create mode 100644 sepolicy/private/storaged.te
+ create mode 100644 sepolicy/sdcardd.te
+ create mode 100644 sepolicy/usbd.te
+ create mode 100644 sepolicy/vndservice.te
+ create mode 100644 sepolicy/vndservice_contexts
+ create mode 100644 sepolicy/vndservicemanager.te
+ create mode 100644 sepolicy/vold_prepare_subdirs.te
+
+diff --git a/sepolicy/audioserver.te b/sepolicy/audioserver.te
+index 854d8a2..ac153b2 100644
+--- a/sepolicy/audioserver.te
++++ b/sepolicy/audioserver.te
+@@ -1,2 +1,4 @@
+ # Callbacks in response to IPC from rild into audioserver
+ binder_call(audioserver, rild)
++
++allow audioserver hal_power_hwservice:hwservice_manager find;
+diff --git a/sepolicy/bootanim.te b/sepolicy/bootanim.te
+new file mode 100644
+index 0000000..a8bddd5
+--- /dev/null
++++ b/sepolicy/bootanim.te
+@@ -0,0 +1 @@
++allow bootanim system_data_file:dir r_dir_perms;
+diff --git a/sepolicy/dnsmasq.te b/sepolicy/dnsmasq.te
+new file mode 100644
+index 0000000..15799c3
+--- /dev/null
++++ b/sepolicy/dnsmasq.te
+@@ -0,0 +1 @@
++allow dnsmasq netd:fifo_file getattr;
+diff --git a/sepolicy/file.te b/sepolicy/file.te
+index 6f9b23b..b5b1087 100644
+--- a/sepolicy/file.te
++++ b/sepolicy/file.te
+@@ -38,3 +38,24 @@ type sysfs_wifi_sar, fs_type, sysfs_type;
+ type sysfs_lcd_mipi, fs_type, sysfs_type;
+ 
+ type nfc_vendor_data_file, file_type, data_file_type;
++
++# type for mtp
++type sysfs_g_android_param, fs_type, sysfs_type;
++# battery
++type sysfs_battery, fs_type, sysfs_type;
++# type for fs tune
++type sysfs_tune, fs_type, sysfs_type;# wifi mtu
++# graphics
++type sysfs_graphics_comp, fs_type, sysfs_type;
++# cpu
++type sysfs_cpu, fs_type, sysfs_type;
++# wifi mtu
++type sysfs_wifi_mtu, fs_type, sysfs_type;
++# rmt storage
++type debugfs_rmt_storage, fs_type, debugfs_type;
++# enable edl
++type sysfs_enable_edl, fs_type, sysfs_type;
++# leds
++type sysfs_qpnp_26, fs_type, sysfs_type;
++# ram dumps
++type sysfs_ramdumps, fs_type, sysfs_type;
+diff --git a/sepolicy/file_contexts b/sepolicy/file_contexts
+index 21aa595..2dfb5ac 100644
+--- a/sepolicy/file_contexts
++++ b/sepolicy/file_contexts
+@@ -118,6 +118,7 @@
+ 
+ # sysfs files used by wifi
+ /sys/module/bcmdhd/parameters/firmware_path u:object_r:sysfs_wlan_fwpath:s0
++/sys/module/bcmdhd/parameters/nvram_path u:object_r:sysfs_wlan_fwpath:s0
+ 
+ # wifi mac address
+ /sys/devices/virtual/net/wlan0/address                   u:object_r:sysfs_mac_address:s0
+@@ -187,3 +188,26 @@
+ 
+ # NFC hal
+ /system/bin/hw/nfc_hal_pn54x    u:object_r:nfc_hal_pn54x_exec:s0
++
++# Sysfs files used by mtp
++/sys/module/g_android/parameters(/.*)? u:object_r:sysfs_g_android_param:s0
++# Sysfs files used for CPU
++/sys/devices/soc.0/f9824900.sdhci/mmc_host/mmc0/mmc0:0001/block/mmcblk0/queue(/.*)?  u:object_r:sysfs_tune:s0
++/sys/devices/soc.0/f9824900.sdhci/mmc_host/mmc0/mmc0:0001/block/mmcblk0/mmcblk0rpmb/queue(/.*)?  u:object_r:sysfs_tune:s0
++# battery
++/sys/devices/soc.0/qpnp-smbcharger-17/power_supply/battery(/.*)? u:object_r:sysfs_battery:s0
++/sys/class/power_supply/battery(/.*)? u:object_r:sysfs_battery:s0
++# graphics stuffs
++/sys/devices/virtual/graphics/fb[0-1](/.*)? u:object_r:sysfs_graphics_comp:s0
++# CPU missing policies for max_freq and min_freq
++/sys/devices/soc.0/fdb00000.qcom,kgsl-3d0/devfreq/fdb00000.qcom,kgsl-3d0(/.*)? u:object_r:sysfs_cpu:s0
++# WiFi mtu
++/sys/devices/virtual/net/rmnet_data0/mtu  u:object_r:sysfs_wifi_mtu:s0
++# rmt storage
++/sys/kernel/debug/rmt_storage(/.*)? u:object_r:debugfs_rmt_storage:s0
++# enable edl
++/sys/module/msm_poweroff/parameters/enable_edl u:object_r:sysfs_enable_edl:s0
++# leds
++/sys/devices/soc.0/leds-qpnp-26/leds(/.*) u:object_r:sysfs_qpnp_26:s0
++# ram dumps
++/sys/module/subsystem_restart/parameters/enable_ramdumps u:object_r:sysfs_ramdumps:s0
+diff --git a/sepolicy/fsck.te b/sepolicy/fsck.te
+new file mode 100644
+index 0000000..1500b5f
+--- /dev/null
++++ b/sepolicy/fsck.te
+@@ -0,0 +1 @@
++allow fsck persist_block_device:blk_file rw_file_perms;
+diff --git a/sepolicy/hal_contexthub_default.te b/sepolicy/hal_contexthub_default.te
+new file mode 100644
+index 0000000..aa71752
+--- /dev/null
++++ b/sepolicy/hal_contexthub_default.te
+@@ -0,0 +1,2 @@
++allow hal_contexthub_default vendor_data_file:dir create_dir_perms;
++allow hal_contexthub_default sensors_device:chr_file { read write open };
+diff --git a/sepolicy/hal_fingerprint_default.te b/sepolicy/hal_fingerprint_default.te
+new file mode 100644
+index 0000000..c9318e0
+--- /dev/null
++++ b/sepolicy/hal_fingerprint_default.te
+@@ -0,0 +1,2 @@
++allow hal_fingerprint_default sysfs_thermal:dir search;
++allow hal_fingerprint_default sysfs_thermal:file { read open };
+diff --git a/sepolicy/hal_graphics_allocator.te b/sepolicy/hal_graphics_allocator.te
+index a4479de..5836b15 100644
+--- a/sepolicy/hal_graphics_allocator.te
++++ b/sepolicy/hal_graphics_allocator.te
+@@ -1,2 +1,6 @@
+-
+ allow hal_graphics_allocator sysfs_hal_gralloc:file r_file_perms;
++
++# graphics
++allow hal_graphics_allocator sysfs_graphics_comp:dir r_dir_perms;
++allow hal_graphics_allocator sysfs_graphics_comp:file r_file_perms;
++allow hal_graphics_allocator sysfs_graphics_comp:lnk_file rw_file_perms; 
+diff --git a/sepolicy/hal_graphics_composer_default.te b/sepolicy/hal_graphics_composer_default.te
+new file mode 100644
+index 0000000..c1c7aae
+--- /dev/null
++++ b/sepolicy/hal_graphics_composer_default.te
+@@ -0,0 +1,18 @@
++allow hal_graphics_composer_default self:netlink_kobject_uevent_socket { read create bind setopt };
++allow hal_graphics_composer_default servicemanager:binder { call transfer };
++allow hal_graphics_composer_default sysfs_hal_gralloc:file { read open getattr };
++
++# vndbinder
++allow hal_graphics_composer_default vndbinder_device:chr_file rw_file_perms;
++# vndservicemanager
++allow hal_graphics_composer_default vndservicemanager:binder { call transfer };
++# graphics
++allow hal_graphics_composer_default sysfs_graphics_comp:dir r_dir_perms;
++allow hal_graphics_composer_default sysfs_graphics_comp:file { read open };
++allow hal_graphics_composer_default sysfs_graphics_comp:lnk_file rw_file_perms;
++# for hal_graphics_composer
++vndbinder_use(hal_graphics_composer_default);
++add_service(hal_graphics_composer_default, qdisplay_service)
++# display
++allow hal_graphics_composer_default display_data_file:dir r_dir_perms;
++
+diff --git a/sepolicy/healthd.te b/sepolicy/healthd.te
+index 1b6209e..adb12ed 100644
+--- a/sepolicy/healthd.te
++++ b/sepolicy/healthd.te
+@@ -1,2 +1,10 @@
+ allow healthd sysfs_thermal:dir r_dir_perms;
+ allow healthd sysfs_thermal:file rw_file_perms;
++
++allow healthd sysfs_battery:dir r_dir_perms;
++allow healthd sysfs_battery:file rw_file_perms;
++allow healthd sysfs_battery:lnk_file rw_file_perms;
++
++# fixing missing healthd
++allow healthd sysfs:dir r_dir_perms;
++allow healthd sysfs:file r_file_perms;
+diff --git a/sepolicy/init-mcfg-sh.te b/sepolicy/init-mcfg-sh.te
+index 0248963..6a87e0d 100644
+--- a/sepolicy/init-mcfg-sh.te
++++ b/sepolicy/init-mcfg-sh.te
+@@ -14,3 +14,6 @@ allow init-mcfg-sh firmware_file:file r_file_perms;
+ 
+ # execute toybox/toolbox
+ allow init-mcfg-sh toolbox_exec:file rx_file_perms;
++
++allow init-mcfg-sh vfat:dir { search read open };
++allow init-mcfg-sh vfat:file { getattr open read };
+diff --git a/sepolicy/init.te b/sepolicy/init.te
+index 3aa81d1..e8129f5 100644
+--- a/sepolicy/init.te
++++ b/sepolicy/init.te
+@@ -1 +1,38 @@
+ allow init tmpfs:lnk_file create_file_perms;
++
++allow init sysfs_power_management:file { write open };
++
++# mtp
++allow init sysfs_g_android_param:dir r_dir_perms;
++allow init sysfs_g_android_param:file rw_file_perms;
++# vold and cryptd
++allow init socket_device:sock_file { create setattr unlink write };
++# usb
++allow init sysfs_usb:file { setattr };
++# wifi
++allow init sysfs_wifi_sar:file { setattr };
++# lcd
++allow init sysfs_lcd_mipi:file { setattr };
++# battery
++allow init sysfs_battery:file { setattr read };
++allow init sysfs_battery:lnk_file rw_file_perms;
++# sys tune
++allow init sysfs_tune:file rw_file_perms;
++# bluetooth
++allow init sysfs_bluetooth_writable:file { setattr read };
++# cpu
++allow init sysfs_cpu:file setattr;
++allow init sysfs_thermal:file setattr;
++# enable edl
++allow init sysfs_enable_edl:file rw_file_perms;
++# led_bg
++allow init sysfs_qpnp_26:file setattr;
++allow init sysfs_qpnp_26:lnk_file rw_file_perms;
++# wlan firmware
++allow init sysfs_wlan_fwpath:file { read open write getattr setattr open };
++# gpu
++allow init sysfs_gpu_tuning:file setattr;
++# ram dumps
++allow init sysfs_ramdumps:file rw_file_perms;
++# todo fix missing labels
++allow init sysfs:file { setattr getattr };
+diff --git a/sepolicy/netd.te b/sepolicy/netd.te
+index 2b002ec..81be11b 100644
+--- a/sepolicy/netd.te
++++ b/sepolicy/netd.te
+@@ -1 +1,6 @@
+ dontaudit netd self:capability sys_module;
++
++# For /sys/modules/bcmdhd/parameters/firmware_path and nvram_path
++allow netd sysfs_wlan_fwpath:file w_file_perms;
++# For /sys/devices/virtual/net/rmnet_data0/mtu
++allow netd sysfs_wifi_mtu:file rw_file_perms; 
+diff --git a/sepolicy/netmgrd.te b/sepolicy/netmgrd.te
+index 6a7b6d4..77f51f3 100644
+--- a/sepolicy/netmgrd.te
++++ b/sepolicy/netmgrd.te
+@@ -8,7 +8,7 @@ init_daemon_domain(netmgrd)
+ net_domain(netmgrd)
+ allowxperm netmgrd self:udp_socket ioctl priv_sock_ioctls;
+ 
+-allow netmgrd self:capability { setuid setgid net_admin net_raw };
++allow netmgrd self:capability { setuid setgid net_admin net_raw sys_module };
+ dontaudit netmgrd self:capability setpcap;
+ 
+ set_prop(netmgrd, net_radio_prop)
+diff --git a/sepolicy/nfc.te b/sepolicy/nfc.te
+index 90488a1..10fbb90 100644
+--- a/sepolicy/nfc.te
++++ b/sepolicy/nfc.te
+@@ -1,2 +1,5 @@
+ # allow NFC process to call into the NFC HAL
+ binder_call(nfc, nfc_hal_pn54x)
++
++allow nfc nfc_vendor_data_file:dir rw_dir_perms;
++allow nfc nfc_vendor_data_file:file create_file_perms;
+diff --git a/sepolicy/perfd.te b/sepolicy/perfd.te
+index b5044e1..9c48b42 100644
+--- a/sepolicy/perfd.te
++++ b/sepolicy/perfd.te
+@@ -24,4 +24,4 @@ allow perfd sysfs_devices_system_cpu:file rw_file_perms;
+ # perfd uses kill(pid, 0) to determine if a process exists.
+ # Determining if a process exists does not require the kill capability
+ # since a permission denied indicates the process exists.
+-dontaudit perfd self:capability kill;
++dontaudit perfd self:capability { dac_override kill };
+diff --git a/sepolicy/platform_app.te b/sepolicy/platform_app.te
+index c9a4781..e8fb7f5 100644
+--- a/sepolicy/platform_app.te
++++ b/sepolicy/platform_app.te
+@@ -12,3 +12,5 @@ allow platform_app oem_qmi_server:unix_stream_socket connectto;
+ # part of b/28760354 in order to deprivilege other processes which do not need
+ # access.
+ r_dir_file(platform_app, sysfs)
++
++allow platform_app nfc_service:service_manager find;
+diff --git a/sepolicy/private/storaged.te b/sepolicy/private/storaged.te
+new file mode 100644
+index 0000000..f14c65f
+--- /dev/null
++++ b/sepolicy/private/storaged.te
+@@ -0,0 +1,2 @@
++allow storaged sysfs:dir r_dir_perms;
++allow storaged sysfs:file { r_file_perms setattr };
+diff --git a/sepolicy/qmux.te b/sepolicy/qmux.te
+index d65d1da..bf5c5d9 100644
+--- a/sepolicy/qmux.te
++++ b/sepolicy/qmux.te
+@@ -15,3 +15,7 @@ allow qmux radio_device:chr_file rw_file_perms;
+ 
+ # Access to /sys/devices/virtual/smdpkt/smdcntl*/open_timeout
+ allow qmux sysfs_smdcntl_open_timeout:file rw_file_perms;
++
++# qmux
++allow qmux self:capability { setpcap setuid };
++allow qmux shared_log_device:chr_file rw_file_perms;
+diff --git a/sepolicy/radio.te b/sepolicy/radio.te
+index e634f70..840c219 100644
+--- a/sepolicy/radio.te
++++ b/sepolicy/radio.te
+@@ -2,3 +2,5 @@ allow radio oem_qmi_server:unix_stream_socket write;
+ allow radio oem_qmi_server:unix_stream_socket connectto;
+ allow radio rild_qmuxd_socket:sock_file write;
+ qmux_socket(radio)
++
++allow radio system_app_data_file:dir getattr;
+diff --git a/sepolicy/rild.te b/sepolicy/rild.te
+index daca0fe..eb81f0f 100644
+--- a/sepolicy/rild.te
++++ b/sepolicy/rild.te
+@@ -29,3 +29,4 @@ allowxperm rild self:socket ioctl msm_sock_ipc_ioctls;
+ # allow rild to access radio data file
+ allow rild radio_data_file:dir rw_dir_perms;
+ allow rild radio_data_file:file create_file_perms;
++allow rild vendor_file:file ioctl;
+diff --git a/sepolicy/rmt.te b/sepolicy/rmt.te
+index fd1594a..e0cc8e5 100644
+--- a/sepolicy/rmt.te
++++ b/sepolicy/rmt.te
+@@ -18,3 +18,7 @@ allowxperm rmt self:socket ioctl msm_sock_ipc_ioctls;
+ allow rmt root_block_device:blk_file r_file_perms;
+ allow rmt modem_block_device:blk_file rw_file_perms;
+ allow rmt block_device:dir search;
++
++# rmt storage
++allow rmt debugfs_rmt_storage:dir { search read open };
++allow rmt debugfs_rmt_storage:file { read write open };
+diff --git a/sepolicy/sdcardd.te b/sepolicy/sdcardd.te
+new file mode 100644
+index 0000000..0bcbb46
+--- /dev/null
++++ b/sepolicy/sdcardd.te
+@@ -0,0 +1 @@
++allow sdcardd vold:unix_stream_socket { read write };
+diff --git a/sepolicy/ssr.te b/sepolicy/ssr.te
+index 087c524..6ba6ae8 100644
+--- a/sepolicy/ssr.te
++++ b/sepolicy/ssr.te
+@@ -13,4 +13,5 @@ userdebug_or_eng(`
+   allow ssr ssr_data_file:file create_file_perms;
+   allow ssr sysfs_msm_subsys:dir r_dir_perms;
+   allow ssr sysfs_msm_subsys:lnk_file r_file_perms;
++  allow ssr sysfs_ramdumps:file rw_file_perms;
+ ')
+diff --git a/sepolicy/surfaceflinger.te b/sepolicy/surfaceflinger.te
+index e4b090e..f121b38 100644
+--- a/sepolicy/surfaceflinger.te
++++ b/sepolicy/surfaceflinger.te
+@@ -1,3 +1,9 @@
+ allow surfaceflinger sysfs_surfaceflinger:file rw_file_perms;
+ allow surfaceflinger display_data_file:dir rw_dir_perms;
+ allow surfaceflinger display_data_file:file create_file_perms;
++
++allow surfaceflinger persist_file:dir rw_dir_perms;
++
++allow surfaceflinger sysfs_graphics_comp:dir r_dir_perms;
++allow surfaceflinger sysfs_graphics_comp:file { read open };
++allow surfaceflinger sysfs_graphics_comp:lnk_file rw_file_perms;
+diff --git a/sepolicy/system_app.te b/sepolicy/system_app.te
+index fad854f..2f6b411 100644
+--- a/sepolicy/system_app.te
++++ b/sepolicy/system_app.te
+@@ -11,3 +11,10 @@ allow system_app cne_service:service_manager add;
+ allow system_app cnd_data_file:dir w_dir_perms;
+ # allow CNEService to create profile.txt
+ allow system_app cnd_data_file:file create_file_perms;
++
++allow system_app sysfs_zram:dir r_dir_perms;
++allow system_app sysfs_zram:file r_file_perms;
++allow system_app proc_pagetypeinfo:file r_file_perms;
++
++allow system_app perfprofd:binder { transfer };
++allow system_app wificond:binder { call transfer }; 
+diff --git a/sepolicy/system_server.te b/sepolicy/system_server.te
+index 2908334..35da5c0 100644
+--- a/sepolicy/system_server.te
++++ b/sepolicy/system_server.te
+@@ -45,3 +45,11 @@ allow system_server sysfs_thermal:file write;
+ # use MSM ipc router ioctls
+ allow system_server self:socket ioctl;
+ allowxperm system_server self:socket ioctl msm_sock_ipc_ioctls;
++
++# vendor data
++allow system_server vendor_data_file:dir create_dir_perms;
++allow system_server vendor_data_file:file create_file_perms;
++allow system_server vendor_data_file:file rw_file_perms;
++
++# leds 
++allow system_server sysfs_qpnp_26:file rw_file_perms;
+diff --git a/sepolicy/tee.te b/sepolicy/tee.te
+index 0c544b6..a59cf2b 100644
+--- a/sepolicy/tee.te
++++ b/sepolicy/tee.te
+@@ -27,3 +27,6 @@ allow tee persist_drm_file:file create_file_perms;
+ allow tee system_data_file:dir r_dir_perms;
+ allow tee fingerprintd_data_file:dir create_dir_perms;
+ allow tee fingerprintd_data_file:file create_file_perms;
++
++# qseecomd
++allow tee vfat:dir r_dir_perms;
+diff --git a/sepolicy/thermald.te b/sepolicy/thermald.te
+index 48fc2d0..887c5a0 100644
+--- a/sepolicy/thermald.te
++++ b/sepolicy/thermald.te
+@@ -25,3 +25,7 @@ qmux_socket(thermald)
+ 
+ # Reboot the device
+ set_prop(thermald, powerctl_prop)
++
++# battery
++allow thermald sysfs_battery:dir r_dir_perms;
++allow thermald sysfs_battery:lnk_file rw_file_perms; 
+diff --git a/sepolicy/ueventd.te b/sepolicy/ueventd.te
+index 0a75114..3f1467e 100644
+--- a/sepolicy/ueventd.te
++++ b/sepolicy/ueventd.te
+@@ -6,3 +6,5 @@ allow ueventd sysfs_thermal:file rw_file_perms;
+ #read and write /sys/bus/spi/devices/spi12.0/spi_prepare
+ allow ueventd sysfs_fingerprintd:file rw_file_perms;
+ allow ueventd sysfs_nanoapp_cmd:file w_file_perms;
++allow ueventd vfat:dir search;
++allow ueventd vfat:file { getattr open read }; 
+diff --git a/sepolicy/usbd.te b/sepolicy/usbd.te
+new file mode 100644
+index 0000000..22f66b8
+--- /dev/null
++++ b/sepolicy/usbd.te
+@@ -0,0 +1,2 @@
++# this goes in the neverallows domain
++dontaudit usbd self:capability dac_override;
+diff --git a/sepolicy/vndservice.te b/sepolicy/vndservice.te
+new file mode 100644
+index 0000000..b9cc327
+--- /dev/null
++++ b/sepolicy/vndservice.te
+@@ -0,0 +1 @@
++type qdisplay_service,            vndservice_manager_type;
+diff --git a/sepolicy/vndservice_contexts b/sepolicy/vndservice_contexts
+new file mode 100644
+index 0000000..2b9cf7f
+--- /dev/null
++++ b/sepolicy/vndservice_contexts
+@@ -0,0 +1 @@
++display.qservice                          u:object_r:qdisplay_service:s0
+diff --git a/sepolicy/vndservicemanager.te b/sepolicy/vndservicemanager.te
+new file mode 100644
+index 0000000..c343e38
+--- /dev/null
++++ b/sepolicy/vndservicemanager.te
+@@ -0,0 +1,4 @@
++# hal_graphics_composer binder
++allow vndservicemanager hal_graphics_composer_default:dir r_dir_perms;
++allow vndservicemanager hal_graphics_composer_default:file rw_file_perms;
++allow vndservicemanager hal_graphics_composer_default:process getattr;
+diff --git a/sepolicy/vold_prepare_subdirs.te b/sepolicy/vold_prepare_subdirs.te
+new file mode 100644
+index 0000000..deed42f
+--- /dev/null
++++ b/sepolicy/vold_prepare_subdirs.te
+@@ -0,0 +1 @@
++allow vold_prepare_subdirs vold:unix_stream_socket { read write };

@@ -1,0 +1,71 @@
+From 8190e13ce7032cc3e661512a8ab6ef72abb9a9c7 Mon Sep 17 00:00:00 2001
+From: Giuseppe Maggio <jertlokk@gmail.com>
+Date: Tue, 1 Jan 2019 17:04:56 +0000
+Subject: [PATCH] angler: QCamera: fix 'str' array NULL comparison
+
+device/huawei/angler/camera/QCamera2/HAL3/QCamera3PostProc.cpp:2086:8:
+error: comparison of array 'str' not equal to a null pointer is always
+true [-Werror,-Wtautological-pointer-compare]
+    if(str != NULL) {
+       ^~~    ~~~~
+device/huawei/angler/camera/QCamera2/HAL3/QCamera3PostProc.cpp:2121:8:
+error: comparison of array 'str' not equal to a null pointer is always
+true [-Werror,-Wtautological-pointer-compare]
+    if(str != NULL) {
+       ^~~    ~~~~
+device/huawei/angler/camera/QCamera2/HAL3/QCamera3PostProc.cpp:2156:9:
+error: comparison of array 'str' not equal to a null pointer is always
+true [-Werror,-Wtautological-pointer-compare]
+    if (str != NULL) {
+        ^~~    ~~~~
+device/huawei/angler/camera/QCamera2/HAL3/QCamera3PostProc.cpp:2189:8:
+error: comparison of array 'str' not equal to a null pointer is always
+true [-Werror,-Wtautological-pointer-compare]
+    if(str != NULL) {
+       ^~~    ~~~~
+
+Change-Id: I58d7af0a4587e001653c525b759370be0becd5b0
+---
+ camera/QCamera2/HAL3/QCamera3PostProc.cpp | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/camera/QCamera2/HAL3/QCamera3PostProc.cpp b/camera/QCamera2/HAL3/QCamera3PostProc.cpp
+index 1454a49..ae6613a 100755
+--- a/camera/QCamera2/HAL3/QCamera3PostProc.cpp
++++ b/camera/QCamera2/HAL3/QCamera3PostProc.cpp
+@@ -2083,7 +2083,7 @@ int32_t getExifLatitude(rat_t *latitude, char *latRef, double value)
+ {
+     char str[30];
+     snprintf(str, sizeof(str), "%f", value);
+-    if(str != NULL) {
++    if(str[0] != '\0') {
+         parseGPSCoordinate(str, latitude);
+ 
+         //set Latitude Ref
+@@ -2118,7 +2118,7 @@ int32_t getExifLongitude(rat_t *longitude, char *lonRef, double value)
+ {
+     char str[30];
+     snprintf(str, sizeof(str), "%f", value);
+-    if(str != NULL) {
++    if(str[0] != '\0') {
+         parseGPSCoordinate(str, longitude);
+ 
+         //set Longitude Ref
+@@ -2153,7 +2153,7 @@ int32_t getExifAltitude(rat_t *altitude, char *altRef, double argValue)
+ {
+     char str[30];
+     snprintf(str, sizeof(str), "%f", argValue);
+-    if (str != NULL) {
++    if (str[0] != '\0') {
+         double value = atof(str);
+         *altRef = 0;
+         if(value < 0){
+@@ -2186,7 +2186,7 @@ int32_t getExifGpsDateTimeStamp(char *gpsDateStamp, uint32_t bufLen,
+ {
+     char str[30];
+     snprintf(str, sizeof(str), "%lld", (long long int)value);
+-    if(str != NULL) {
++    if(str[0] != '\0') {
+         time_t unixTime = (time_t)atol(str);
+         struct tm *UTCTimestamp = gmtime(&unixTime);
+         if (UTCTimestamp != NULL && gpsDateStamp != NULL

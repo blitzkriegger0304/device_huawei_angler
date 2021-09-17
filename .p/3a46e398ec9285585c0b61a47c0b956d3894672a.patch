@@ -1,0 +1,37 @@
+From 3a46e398ec9285585c0b61a47c0b956d3894672a Mon Sep 17 00:00:00 2001
+From: Giuseppe Maggio <jertlokk@gmail.com>
+Date: Tue, 1 Jan 2019 18:01:43 +0000
+Subject: [PATCH] angler: QCamera: remove unused const variables
+
+Change-Id: I0d1ac7c14ffb2ee3bb9a1e959fff864531ae9d01
+---
+ camera/QCamera2/HAL3/QCamera3PostProc.cpp   | 2 --
+ camera/QCamera2/HAL3/QCamera3VendorTags.cpp | 2 --
+ 2 files changed, 4 deletions(-)
+
+diff --git a/camera/QCamera2/HAL3/QCamera3PostProc.cpp b/camera/QCamera2/HAL3/QCamera3PostProc.cpp
+index ae6613a..dedc200 100755
+--- a/camera/QCamera2/HAL3/QCamera3PostProc.cpp
++++ b/camera/QCamera2/HAL3/QCamera3PostProc.cpp
+@@ -45,8 +45,6 @@ namespace qcamera {
+ 
+ static const char ExifAsciiPrefix[] =
+     { 0x41, 0x53, 0x43, 0x49, 0x49, 0x0, 0x0, 0x0 };          // "ASCII\0\0\0"
+-static const char ExifUndefinedPrefix[] =
+-    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };   // "\0\0\0\0\0\0\0\0"
+ 
+ #define EXIF_ASCII_PREFIX_SIZE           8   //(sizeof(ExifAsciiPrefix))
+ #define FOCAL_LENGTH_DECIMAL_PRECISION   1000
+diff --git a/camera/QCamera2/HAL3/QCamera3VendorTags.cpp b/camera/QCamera2/HAL3/QCamera3VendorTags.cpp
+index 463a9c3..1288b4b 100644
+--- a/camera/QCamera2/HAL3/QCamera3VendorTags.cpp
++++ b/camera/QCamera2/HAL3/QCamera3VendorTags.cpp
+@@ -40,8 +40,6 @@ using namespace android;
+ 
+ namespace qcamera {
+ 
+-const int QCAMERA3_SECTION_COUNT = QCAMERA3_SECTIONS_END - VENDOR_SECTION;
+-
+ enum qcamera3_ext_tags qcamera3_ext3_section_bounds[QCAMERA3_SECTIONS_END -
+     VENDOR_SECTION] = {
+         QCAMERA3_PRIVATEDATA_END,

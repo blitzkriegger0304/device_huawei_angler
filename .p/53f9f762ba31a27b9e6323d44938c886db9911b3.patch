@@ -1,0 +1,30 @@
+From 53f9f762ba31a27b9e6323d44938c886db9911b3 Mon Sep 17 00:00:00 2001
+From: Giuseppe Maggio <jertlokk@gmail.com>
+Date: Tue, 1 Jan 2019 17:57:11 +0000
+Subject: [PATCH] angler: QCamera: fix 'rc' variable assignment
+
+I think that it wasn't intended to put a comparison over here, but
+instead a or-assignemnt (just I saw on other areas).
+
+device/huawei/angler/camera/QCamera2/HAL3/QCamera3Channel.cpp:3733:8:
+error: inequality comparison result unused [-Werror,-Wunused-comparison]
+    rc != m_camOps->stop_channel(m_camHandle, m_handle);
+
+Change-Id: I609f2034ce12e7265cd8e8f02ebd2eae0ebf5188
+---
+ camera/QCamera2/HAL3/QCamera3Channel.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/camera/QCamera2/HAL3/QCamera3Channel.cpp b/camera/QCamera2/HAL3/QCamera3Channel.cpp
+index 05b3d3f..81c3ecc 100644
+--- a/camera/QCamera2/HAL3/QCamera3Channel.cpp
++++ b/camera/QCamera2/HAL3/QCamera3Channel.cpp
+@@ -3730,7 +3730,7 @@ int32_t QCamera3ReprocessChannel::stop()
+ 
+     rc = QCamera3Channel::stop();
+ 
+-    rc != m_camOps->stop_channel(m_camHandle, m_handle);
++    rc |= m_camOps->stop_channel(m_camHandle, m_handle);
+ 
+     unmapOfflineBuffers(true);
+ 

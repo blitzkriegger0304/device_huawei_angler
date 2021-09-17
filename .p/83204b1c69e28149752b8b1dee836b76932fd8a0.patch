@@ -1,0 +1,27 @@
+From 83204b1c69e28149752b8b1dee836b76932fd8a0 Mon Sep 17 00:00:00 2001
+From: Giuseppe Maggio <jertlokk@gmail.com>
+Date: Tue, 9 Oct 2018 12:06:03 +0200
+Subject: [PATCH] angler: build AOSP symlinks regardless of TARGET_PRODUCT
+
+Change-Id: I7f6e078261ddfd55394853dd210f58d8353ce8de
+---
+ aosp/Android.mk | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/aosp/Android.mk b/aosp/Android.mk
+index d926cd1..10643b8 100644
+--- a/aosp/Android.mk
++++ b/aosp/Android.mk
+@@ -1,5 +1,5 @@
+ # Create links from /vendor to /system for AOSP without vendor builds
+-ifneq (,$(filter aosp_angler, $(TARGET_PRODUCT)))
++#ifneq (,$(filter aosp_angler, $(TARGET_PRODUCT)))
+ 
+ LOCAL_PATH := $(call my-dir)
+ 
+@@ -29,4 +29,4 @@ LOCAL_POST_INSTALL_CMD := \
+ 
+ include $(BUILD_PHONY_PACKAGE)
+ 
+-endif # aosp_angler
++#endif # aosp_angler

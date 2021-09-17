@@ -1,0 +1,25 @@
+From 49e747e03154e41ecbfe5a0ea19e1a14f76fbf79 Mon Sep 17 00:00:00 2001
+From: Akash Mondal <a98mondal@gmail.com>
+Date: Mon, 30 Sep 2019 19:40:24 +0000
+Subject: [PATCH] Add libashmemd_client to platform shared libraries
+
+E : ashmem  : Failed to dlopen() libashmemd_client.so: dlopen failed: library "libashmemd_client.so" not found.
+
+Change-Id: I5ea7f1686d4ad5b67ec5e37b91742f907d71075e
+---
+ configs/ld.config.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/configs/ld.config.txt b/configs/ld.config.txt
+index f9124ab..0d3ab21 100644
+--- a/configs/ld.config.txt
++++ b/configs/ld.config.txt
+@@ -27,7 +27,7 @@ namespace.default.links = platform
+ # TODO: replace the following when apex has a way to auto-generate this list
+ # namespace.default.link.platform.shared_libs  = %LLNDK_LIBRARIES%
+ # namespace.default.link.platform.shared_libs += %SANITIZER_RUNTIME_LIBRARIES%
+-namespace.default.link.platform.shared_libs = libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libRS.so:libandroid_net.so:libc.so:libcgrouprc.so:libclang_rt.asan-aarch64-android.so:libclang_rt.asan-arm-android.so:libclang_rt.hwasan-aarch64-android.so:libclang_rt.asan-i686-android.so:libclang_rt.asan-x86_64-android.so:libdl.so:libft2.so:liblog.so:libm.so:libmediandk.so:libnativewindow.so:libneuralnetworks.so:libsync.so:libvndksupport.so:libdl_android.so:libvulkan.so
++namespace.default.link.platform.shared_libs = libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libRS.so:libandroid_net.so:libc.so:libcgrouprc.so:libclang_rt.asan-aarch64-android.so:libclang_rt.asan-arm-android.so:libclang_rt.hwasan-aarch64-android.so:libclang_rt.asan-i686-android.so:libclang_rt.asan-x86_64-android.so:libdl.so:libft2.so:liblog.so:libm.so:libmediandk.so:libnativewindow.so:libneuralnetworks.so:libsync.so:libvndksupport.so:libdl_android.so:libvulkan.so:libashmemd_client.so
+ 
+ ###############################################################################
+ # "platform" namespace

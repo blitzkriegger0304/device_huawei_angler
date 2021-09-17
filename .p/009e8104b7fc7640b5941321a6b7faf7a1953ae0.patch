@@ -1,0 +1,31 @@
+From 009e8104b7fc7640b5941321a6b7faf7a1953ae0 Mon Sep 17 00:00:00 2001
+From: Giuseppe Maggio <jertlokk@gmail.com>
+Date: Tue, 1 Jan 2019 16:57:30 +0000
+Subject: [PATCH] angler: QCamera: fix different enum type for torch
+
+device/huawei/angler/camera/QCamera2/stack/mm-camera-test/src/mm_qcamera_main_menu.c:1429:20:
+error: implicit conversion from enumeration type 'cam_iso_mode_type' to
+different enumeration type 'cam_flash_mode_t'
+[-Werror,-Wenum-conversion]
+            type = CAM_ISO_MODE_100;
+                 ~ ^~~~~~~~~~~~~~~~
+1 error generated.
+
+Change-Id: Id8190afd275ab5b2968c66f6a527d503fc4534f7
+---
+ camera/QCamera2/stack/mm-camera-test/src/mm_qcamera_main_menu.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/camera/QCamera2/stack/mm-camera-test/src/mm_qcamera_main_menu.c b/camera/QCamera2/stack/mm-camera-test/src/mm_qcamera_main_menu.c
+index d4d785d..97519c9 100644
+--- a/camera/QCamera2/stack/mm-camera-test/src/mm_qcamera_main_menu.c
++++ b/camera/QCamera2/stack/mm-camera-test/src/mm_qcamera_main_menu.c
+@@ -1426,7 +1426,7 @@ int set_flash_mode (mm_camera_lib_handle *lib_handle, int action_param) {
+             break;
+         case FLASH_MODE_TORCH:
+             printf("\n FLASH_MODE_TORCH\n");
+-            type = CAM_ISO_MODE_100;
++            type = CAM_FLASH_MODE_TORCH;
+             break;
+         default:
+             break;

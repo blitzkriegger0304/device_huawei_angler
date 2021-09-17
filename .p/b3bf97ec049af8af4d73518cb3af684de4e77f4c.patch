@@ -1,0 +1,32 @@
+From b3bf97ec049af8af4d73518cb3af684de4e77f4c Mon Sep 17 00:00:00 2001
+From: Steven Moreland <smoreland@google.com>
+Date: Fri, 16 Mar 2018 10:23:14 -0700
+Subject: [PATCH] angler: light: mark as shutdown critical
+
+Required because the lights need to be turned off late in boot
+(e.x. during fsck for disk health), and before, blank_screen
+accessing light encountered a race condition where if it didn't
+get scheduled before all of the processes which were getting
+shutdown were getting killed, the screen wouldn't blank.
+
+Bug: 74976325
+Test: adjusting brightness continues to work
+Test: screen blanks during shutdown at the correct time
+    including when an artificial 5s delay is inserted when
+    the phone normally fscks (which can also be quick)
+
+Change-Id: I57ebc11d7ecf57ee327c681455712f4b53de6fd3
+Merged-In: I57ebc11d7ecf57ee327c681455712f4b53de6fd3
+---
+ light/android.hardware.light@2.0-service.angler.rc | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/light/android.hardware.light@2.0-service.angler.rc b/light/android.hardware.light@2.0-service.angler.rc
+index e1d553f..d705bc3 100644
+--- a/light/android.hardware.light@2.0-service.angler.rc
++++ b/light/android.hardware.light@2.0-service.angler.rc
+@@ -25,3 +25,4 @@ service vendor.light-hal-2-0 /vendor/bin/hw/android.hardware.light@2.0-service.a
+     class hal
+     user system
+     group system
++    shutdown critical

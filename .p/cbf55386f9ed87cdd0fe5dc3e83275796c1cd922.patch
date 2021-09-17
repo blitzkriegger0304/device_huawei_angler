@@ -1,0 +1,164 @@
+From cbf55386f9ed87cdd0fe5dc3e83275796c1cd922 Mon Sep 17 00:00:00 2001
+From: Pranav Vashi <neobuddy89@gmail.com>
+Date: Wed, 22 Jan 2020 01:31:48 +0530
+Subject: [PATCH] angler: Activate lineage specific overlays and props
+
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../base/core/res/res/values/config.xml       | 19 ++++++
+ .../lineage/res/res/values/config.xml         | 62 +++++++++++++++++++
+ .../apps/CarrierConfig/res/xml/vendor.xml     |  3 +
+ system_prop.mk                                |  8 ++-
+ 4 files changed, 91 insertions(+), 1 deletion(-)
+ create mode 100644 overlay/lineage-sdk/lineage/res/res/values/config.xml
+
+diff --git a/overlay/frameworks/base/core/res/res/values/config.xml b/overlay/frameworks/base/core/res/res/values/config.xml
+index 738b2c4..29eb491 100755
+--- a/overlay/frameworks/base/core/res/res/values/config.xml
++++ b/overlay/frameworks/base/core/res/res/values/config.xml
+@@ -428,4 +428,23 @@
+     <!-- Boolean indicating whether the HWC setColorTransform function can be performed efficiently
+          in hardware. -->
+     <bool name="config_setColorTransformAccelerated">true</bool>
++
++    <!-- Whether WiFi display is supported by this device.
++         There are many prerequisites for this feature to work correctly.
++         Here are a few of them:
++         * The WiFi radio must support WiFi P2P.
++         * The WiFi radio must support concurrent connections to the WiFi display and
++           to an access point.
++         * The Audio Flinger audio_policy.conf file must specify a rule for the "r_submix"
++           remote submix module.  This module is used to record and stream system
++           audio output to the WiFi display encoder in the media server.
++         * The remote submix module "audio.r_submix.default" must be installed on the device.
++         * The device must be provisioned with HDCP keys (for protected content).
++    -->
++    <bool name="config_enableWifiDisplay">true</bool>
++
++    <!-- Hide Project Fi app unless it is being used -->
++    <string-array name="config_disabledUntilUsedPreinstalledCarrierApps">
++        <item>com.google.android.apps.tycho</item>
++    </string-array>
+ </resources>
+diff --git a/overlay/lineage-sdk/lineage/res/res/values/config.xml b/overlay/lineage-sdk/lineage/res/res/values/config.xml
+new file mode 100644
+index 0000000..61f35fb
+--- /dev/null
++++ b/overlay/lineage-sdk/lineage/res/res/values/config.xml
+@@ -0,0 +1,62 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     Copyright (C) 2016 The CyanogenMod Project
++
++     Licensed under the Apache License, Version 2.0 (the "License");
++     you may not use this file except in compliance with the License.
++     You may obtain a copy of the License at
++
++          http://www.apache.org/licenses/LICENSE-2.0
++
++     Unless required by applicable law or agreed to in writing, software
++     distributed under the License is distributed on an "AS IS" BASIS,
++     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++     See the License for the specific language governing permissions and
++     limitations under the License.
++-->
++<resources>
++    <!-- All the capabilities of the LEDs on this device, stored as a bit field.
++         This integer should equal the sum of the corresponding value for each
++         of the following capabilities present:
++
++         LIGHTS_RGB_NOTIFICATION_LED = 1
++         LIGHTS_RGB_BATTERY_LED = 2
++         LIGHTS_MULTIPLE_NOTIFICATION_LED = 4 (deprecated)
++         LIGHTS_PULSATING_LED = 8
++         LIGHTS_SEGMENTED_BATTERY_LED = 16
++         LIGHTS_ADJUSTABLE_NOTIFICATION_LED_BRIGHTNESS = 32
++         LIGHTS_BATTERY_LED = 64
++
++         For example, a device with notification and battery lights
++         that support pulsating and RGB control would set this config
++         to 75. -->
++    <integer name="config_deviceLightCapabilities">107</integer>
++
++    <!-- Hardware keys present on the device, stored as a bit field.
++         This integer should equal the sum of the corresponding value for each
++         of the following keys present:
++             1 - Home
++             2 - Back
++             4 - Menu
++             8 - Assistant (search)
++            16 - App switch
++            32 - Camera
++            64 - Volume rocker
++         For example, a device with Home, Back and Menu keys would set this
++         config to 7. -->
++    <integer name="config_deviceHardwareKeys">64</integer>
++
++    <!-- Hardware keys present on the device with the ability to wake, stored as a bit field.
++         This integer should equal the sum of the corresponding value for each
++         of the following keys present:
++             1 - Home
++             2 - Back
++             4 - Menu
++             8 - Assistant (search)
++            16 - App switch
++            32 - Camera
++            64 - Volume rocker
++         For example, a device with Home, Back and Menu keys would set this
++         config to 7. -->
++    <integer name="config_deviceHardwareWakeKeys">64</integer>
++</resources>
+diff --git a/overlay/packages/apps/CarrierConfig/res/xml/vendor.xml b/overlay/packages/apps/CarrierConfig/res/xml/vendor.xml
+index b6c97e9..6c5dd66 100755
+--- a/overlay/packages/apps/CarrierConfig/res/xml/vendor.xml
++++ b/overlay/packages/apps/CarrierConfig/res/xml/vendor.xml
+@@ -15,6 +15,7 @@
+         <string name="ci_action_on_sys_update_extra_string">ServerID</string>
+         <string name="ci_action_on_sys_update_intent_string">com.android.omadm.service.CONFIGURATION_UPDATE</string>
+         <string name="ci_action_on_sys_update_extra_val_string">com.vzwdmserver</string>
++        <boolean name="world_phone_bool" value="true" />
+         <boolean name="config_wifi_disable_in_ecbm" value="true" />
+         <boolean name="disable_cdma_activation_code_bool" value="true" />
+         <string-array name="carrier_app_wake_signal_config" num="1">
+@@ -682,6 +683,7 @@
+         <string name="ci_action_on_sys_update_extra_string">ServerID</string>
+         <string name="ci_action_on_sys_update_intent_string">com.android.omadm.service.CONFIGURATION_UPDATE</string>
+         <string name="ci_action_on_sys_update_extra_val_string">com.vzwdmserver</string>
++        <boolean name="world_phone_bool" value="true" />
+         <boolean name="config_wifi_disable_in_ecbm" value="true" />
+         <boolean name="disable_cdma_activation_code_bool" value="true" />
+         <string-array name="carrier_app_wake_signal_config" num="1">
+@@ -708,6 +710,7 @@
+         <string name="ci_action_on_sys_update_extra_string">ServerID</string>
+         <string name="ci_action_on_sys_update_intent_string">com.android.omadm.service.CONFIGURATION_UPDATE</string>
+         <string name="ci_action_on_sys_update_extra_val_string">com.vzwdmserver</string>
++        <boolean name="world_phone_bool" value="true" />
+         <boolean name="config_wifi_disable_in_ecbm" value="true" />
+         <boolean name="disable_cdma_activation_code_bool" value="true" />
+         <string-array name="carrier_app_wake_signal_config" num="1">
+diff --git a/system_prop.mk b/system_prop.mk
+index 4b00818..3d7725d 100644
+--- a/system_prop.mk
++++ b/system_prop.mk
+@@ -95,7 +95,9 @@ PRODUCT_PROPERTY_OVERRIDES += \
+     persist.radio.data_no_toggle=1 \
+     persist.radio.data_con_rprt=true \
+     persist.radio.redir_party_num=0 \
+-    persist.data.mode=concurrent
++    persist.data.mode=concurrent \
++    ro.ril.force_eri_from_xml=true \
++    ro.telephony.get_imsi_from_sim=true
+ 
+ # Shipping API
+ # ro.product.first_api_level indicates the first api level the device has commercially launched on.
+@@ -114,6 +116,10 @@ PRODUCT_PROPERTY_OVERRIDES += \
+     telephony.lteOnCdmaDevice=1 \
+     ro.telephony.call_ring.multiple=0
+ 
++# Tethering without provisioning app
++PRODUCT_PROPERTY_OVERRIDES += \
++    net.tethering.noprovisioning=true
++
+ # Wifi calling
+ PRODUCT_PROPERTY_OVERRIDES += \
+     persist.data.iwlan.enable=true

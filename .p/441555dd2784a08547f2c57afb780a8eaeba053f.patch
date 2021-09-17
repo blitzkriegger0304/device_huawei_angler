@@ -1,0 +1,217 @@
+From 441555dd2784a08547f2c57afb780a8eaeba053f Mon Sep 17 00:00:00 2001
+From: Giuseppe Maggio <jertlokk@gmail.com>
+Date: Tue, 1 Jan 2019 16:24:39 +0000
+Subject: [PATCH] angler: QCamera: remove unused variables
+
+Change-Id: I14aacd02a367a0fb46754c9cc9ce5dceba0b738d
+---
+ camera/QCamera2/HAL/QCamera2HWI.cpp                           | 1 -
+ camera/QCamera2/HAL/QCameraParameters.cpp                     | 2 +-
+ camera/QCamera2/HAL/QCameraPostProc.cpp                       | 2 --
+ camera/QCamera2/HAL3/QCamera3Channel.cpp                      | 4 ----
+ camera/QCamera2/HAL3/QCamera3HWI.cpp                          | 4 ----
+ camera/QCamera2/HAL3/QCamera3Mem.cpp                          | 1 -
+ camera/QCamera2/HAL3/QCamera3PostProc.cpp                     | 2 --
+ camera/QCamera2/HAL3/QCamera3Stream.cpp                       | 1 -
+ .../stack/mm-camera-interface/src/mm_camera_channel.c         | 1 -
+ .../stack/mm-camera-interface/src/mm_camera_interface.c       | 1 -
+ camera/QCamera2/util/QCameraPerf.cpp                          | 1 -
+ 11 files changed, 1 insertion(+), 19 deletions(-)
+
+diff --git a/camera/QCamera2/HAL/QCamera2HWI.cpp b/camera/QCamera2/HAL/QCamera2HWI.cpp
+index 8a4e8e2..40e3e36 100644
+--- a/camera/QCamera2/HAL/QCamera2HWI.cpp
++++ b/camera/QCamera2/HAL/QCamera2HWI.cpp
+@@ -2061,7 +2061,6 @@ QCameraMemory *QCamera2HardwareInterface::allocateStreamUserBuf(
+ {
+     int rc = NO_ERROR;
+     QCameraMemory *mem = NULL;
+-    int bufferCnt = 0;
+     int size = 0;
+ 
+     if (streamInfo->streaming_mode != CAM_STREAMING_MODE_BATCH) {
+diff --git a/camera/QCamera2/HAL/QCameraParameters.cpp b/camera/QCamera2/HAL/QCameraParameters.cpp
+index 88f21d2..c115d31 100644
+--- a/camera/QCamera2/HAL/QCameraParameters.cpp
++++ b/camera/QCamera2/HAL/QCameraParameters.cpp
+@@ -6707,7 +6707,7 @@ int32_t QCameraParameters::configFrameCapture(bool commitSettings)
+  *==========================================================================*/
+ int32_t QCameraParameters::resetFrameCapture(bool commitSettings)
+ {
+-    int32_t rc = NO_ERROR, i = 0;
++    int32_t rc = NO_ERROR;
+     memset(&m_captureFrameConfig, 0, sizeof(cam_capture_frame_config_t));
+ 
+     if (commitSettings) {
+diff --git a/camera/QCamera2/HAL/QCameraPostProc.cpp b/camera/QCamera2/HAL/QCameraPostProc.cpp
+index 0305285..ac13e1d 100644
+--- a/camera/QCamera2/HAL/QCameraPostProc.cpp
++++ b/camera/QCamera2/HAL/QCameraPostProc.cpp
+@@ -754,7 +754,6 @@ bool QCameraPostProcessor::validatePostProcess(mm_camera_super_buf_t *frame)
+ int32_t QCameraPostProcessor::processData(mm_camera_super_buf_t *frame)
+ {
+     bool triggerEvent = TRUE;
+-    QCameraChannel *m_pReprocChannel = NULL;
+ 
+     if (m_bInited == FALSE) {
+         ALOGE("%s: postproc not initialized yet", __func__);
+@@ -2627,7 +2626,6 @@ int32_t QCameraPostProcessor::doReprocess()
+     QCameraStream *pMetaStream = NULL;
+     uint8_t meta_buf_index = 0;
+     mm_camera_buf_def_t *meta_buf = NULL;
+-    bool found_meta = FALSE;
+ 
+     qcamera_pp_request_t *ppreq_job = (qcamera_pp_request_t *)m_inputPPQ.peek();
+     if ((ppreq_job == NULL) || (ppreq_job->src_frame == NULL)) {
+diff --git a/camera/QCamera2/HAL3/QCamera3Channel.cpp b/camera/QCamera2/HAL3/QCamera3Channel.cpp
+index b6acb98..05b3d3f 100644
+--- a/camera/QCamera2/HAL3/QCamera3Channel.cpp
++++ b/camera/QCamera2/HAL3/QCamera3Channel.cpp
+@@ -2436,7 +2436,6 @@ int32_t QCamera3YUVChannel::request(buffer_handle_t *buffer,
+         metadata_buffer_t* metadata, bool &needMetadata)
+ {
+     int32_t rc = NO_ERROR;
+-    int index;
+     Mutex::Autolock lock(mOfflinePpLock);
+ 
+     CDBG("%s: pInputBuffer is %p", __func__, pInputBuffer);
+@@ -2992,7 +2991,6 @@ int32_t QCamera3PicChannel::initialize(cam_is_type_t isType)
+     cam_dimension_t streamDim;
+     cam_stream_type_t streamType;
+     cam_format_t streamFormat;
+-    mm_camera_channel_attr_t attr;
+ 
+     if (NULL == mCamera3Stream) {
+         ALOGE("%s: Camera stream uninitialized", __func__);
+@@ -3251,7 +3249,6 @@ void QCamera3PicChannel::streamCbRoutine(mm_camera_super_buf_t *super_frame,
+ 
+ QCamera3StreamMem* QCamera3PicChannel::getStreamBufs(uint32_t len)
+ {
+-    int rc = 0;
+ 
+     mYuvMemory = new QCamera3StreamMem(mCamera3Stream->max_buffers, false);
+     if (!mYuvMemory) {
+@@ -3624,7 +3621,6 @@ void QCamera3ReprocessChannel::streamCbRoutine(mm_camera_super_buf_t *super_fram
+  *==========================================================================*/
+ QCamera3StreamMem* QCamera3ReprocessChannel::getStreamBufs(uint32_t len)
+ {
+-    int rc = 0;
+     if (mReprocessType == REPROCESS_TYPE_JPEG) {
+         mMemory = new QCamera3StreamMem(mNumBuffers, false);
+         if (!mMemory) {
+diff --git a/camera/QCamera2/HAL3/QCamera3HWI.cpp b/camera/QCamera2/HAL3/QCamera3HWI.cpp
+index 8fc129c..43490c9 100644
+--- a/camera/QCamera2/HAL3/QCamera3HWI.cpp
++++ b/camera/QCamera2/HAL3/QCamera3HWI.cpp
+@@ -1245,7 +1245,6 @@ int QCamera3HardwareInterface::configureStreamsPerfLocked(
+     uint8_t eis_prop_set;
+     uint32_t maxEisWidth = 0;
+     uint32_t maxEisHeight = 0;
+-    int32_t hal_version = CAM_HAL_V3;
+ 
+     memset(&mInputStreamInfo, 0, sizeof(mInputStreamInfo));
+ 
+@@ -4179,7 +4178,6 @@ void QCamera3HardwareInterface::captureResultCb(mm_camera_super_buf_t *metadata_
+  *==========================================================================*/
+ int32_t QCamera3HardwareInterface::getReprocessibleOutputStreamId(uint32_t &id)
+ {
+-    stream_info_t* stream = NULL;
+ 
+     /* check if any output or bidirectional stream with the same size and format
+        and return that stream */
+@@ -4393,7 +4391,6 @@ QCamera3HardwareInterface::translateFromHalMetadata(
+ 
+     IF_META_AVAILABLE(cam_edge_application_t, edgeApplication,
+             CAM_INTF_META_EDGE_MODE, metadata) {
+-        uint8_t edgeStrength = (uint8_t) edgeApplication->sharpness;
+         camMetadata.update(ANDROID_EDGE_MODE, &(edgeApplication->edge_mode), 1);
+     }
+ 
+@@ -5334,7 +5331,6 @@ void QCamera3HardwareInterface::dumpMetadataToFile(tuning_params_t &meta,
+                                                    const char *type,
+                                                    uint32_t frameNumber)
+ {
+-    uint32_t frm_num = 0;
+ 
+     //Some sanity checks
+     if (meta.tuning_sensor_data_size > TUNING_SENSOR_DATA_MAX) {
+diff --git a/camera/QCamera2/HAL3/QCamera3Mem.cpp b/camera/QCamera2/HAL3/QCamera3Mem.cpp
+index d1135cc..b8e7e97 100644
+--- a/camera/QCamera2/HAL3/QCamera3Mem.cpp
++++ b/camera/QCamera2/HAL3/QCamera3Mem.cpp
+@@ -579,7 +579,6 @@ int QCamera3HeapMemory::allocate(size_t size)
+ int QCamera3HeapMemory::allocateOne(size_t size)
+ {
+     unsigned int heap_id_mask = 0x1 << ION_IOMMU_HEAP_ID;
+-    uint32_t i;
+     int rc = NO_ERROR;
+ 
+     //Note that now we allow incremental allocation. In other words, we allow
+diff --git a/camera/QCamera2/HAL3/QCamera3PostProc.cpp b/camera/QCamera2/HAL3/QCamera3PostProc.cpp
+index d714d87..1454a49 100755
+--- a/camera/QCamera2/HAL3/QCamera3PostProc.cpp
++++ b/camera/QCamera2/HAL3/QCamera3PostProc.cpp
+@@ -526,7 +526,6 @@ int32_t QCamera3PostProcessor::processData(mm_camera_super_buf_t *input,
+         buffer_handle_t *output, uint32_t frameNumber)
+ {
+     CDBG("%s: E", __func__);
+-    QCamera3HardwareInterface* hal_obj = (QCamera3HardwareInterface*)m_parent->mUserData;
+     pthread_mutex_lock(&mReprocJobLock);
+ 
+     // enqueue to post proc input queue
+@@ -568,7 +567,6 @@ int32_t QCamera3PostProcessor::processData(mm_camera_super_buf_t *input,
+  *==========================================================================*/
+ int32_t QCamera3PostProcessor::processData(qcamera_fwk_input_pp_data_t *frame)
+ {
+-    QCamera3HardwareInterface* hal_obj = (QCamera3HardwareInterface*)m_parent->mUserData;
+     if (frame->reproc_config.reprocess_type != REPROCESS_TYPE_NONE) {
+         pthread_mutex_lock(&mReprocJobLock);
+         // enqueu to post proc input queue
+diff --git a/camera/QCamera2/HAL3/QCamera3Stream.cpp b/camera/QCamera2/HAL3/QCamera3Stream.cpp
+index e87d1ec..d5bacfe 100644
+--- a/camera/QCamera2/HAL3/QCamera3Stream.cpp
++++ b/camera/QCamera2/HAL3/QCamera3Stream.cpp
+@@ -1359,7 +1359,6 @@ int32_t QCamera3Stream::aggregateBufToBatch(mm_camera_buf_def_t& bufDef)
+ int32_t QCamera3Stream::queueBatchBuf()
+ {
+     int32_t rc = NO_ERROR;
+-    struct msm_camera_user_buf_cont_t *cont_buf = NULL;
+ 
+     if (!mCurrentBatchBufDef) {
+         ALOGE("%s: No buffers were queued into batch", __func__);
+diff --git a/camera/QCamera2/stack/mm-camera-interface/src/mm_camera_channel.c b/camera/QCamera2/stack/mm-camera-interface/src/mm_camera_channel.c
+index 0e968f3..866084e 100644
+--- a/camera/QCamera2/stack/mm-camera-interface/src/mm_camera_channel.c
++++ b/camera/QCamera2/stack/mm-camera-interface/src/mm_camera_channel.c
+@@ -843,7 +843,6 @@ int32_t mm_channel_fsm_fn_active(mm_channel_t *my_obj,
+         {
+             mm_camera_generic_cmd_t gen_cmd;
+             cam_capture_frame_config_t *input;
+-            uint32_t i = 0;
+             gen_cmd.type = MM_CAMERA_GENERIC_CMD_TYPE_CAPTURE_SETTING;
+             CDBG_HIGH("MM_CAMERA_EVT_CAPTURE_SETTING");
+             if (in_val == NULL) {
+diff --git a/camera/QCamera2/stack/mm-camera-interface/src/mm_camera_interface.c b/camera/QCamera2/stack/mm-camera-interface/src/mm_camera_interface.c
+index 1a243a9..2fbf1e5 100644
+--- a/camera/QCamera2/stack/mm-camera-interface/src/mm_camera_interface.c
++++ b/camera/QCamera2/stack/mm-camera-interface/src/mm_camera_interface.c
+@@ -402,7 +402,6 @@ static int32_t mm_camera_intf_close(uint32_t camera_handle)
+ static int32_t mm_camera_intf_error_close(uint32_t camera_handle)
+ {
+     int32_t rc = -1;
+-    uint8_t cam_idx = camera_handle & 0x00ff;
+     mm_camera_obj_t * my_obj = NULL;
+ 
+     CDBG("%s E: camera_handler = %d ", __func__, camera_handle);
+diff --git a/camera/QCamera2/util/QCameraPerf.cpp b/camera/QCamera2/util/QCameraPerf.cpp
+index d082c83..13300aa 100644
+--- a/camera/QCamera2/util/QCameraPerf.cpp
++++ b/camera/QCamera2/util/QCameraPerf.cpp
+@@ -105,7 +105,6 @@ void QCameraPerfLock::lock_init()
+ {
+     const char *rc;
+     char value[PROPERTY_VALUE_MAX];
+-    int len;
+ 
+     CDBG("%s E", __func__);
+     Mutex::Autolock lock(mLock);

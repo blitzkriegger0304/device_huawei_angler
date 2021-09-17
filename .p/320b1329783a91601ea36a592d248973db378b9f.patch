@@ -1,0 +1,99 @@
+From 320b1329783a91601ea36a592d248973db378b9f Mon Sep 17 00:00:00 2001
+From: Giuseppe Maggio <jertlokk@gmail.com>
+Date: Tue, 1 Jan 2019 17:12:54 +0000
+Subject: [PATCH] angler: QCamera: remove unused private fields
+
+device/huawei/angler/camera/QCamera2/HAL3/QCamera3Mem.h:123:10: error:
+private field 'mQueueAll' is not used [-Werror,-Wunused-private-field]
+    bool mQueueAll;
+         ^
+
+device/huawei/angler/camera/QCamera2/HAL/QCameraParameters.h:87:24:
+error: private field 'mParent' is not used
+[-Werror,-Wunused-private-field]
+    QCameraParameters *mParent;
+                       ^
+device/huawei/angler/camera/QCamera2/HAL/QCameraParameters.h:90:10:
+error: private field 'mScaleDirection' is not used
+[-Werror,-Wunused-private-field]
+    bool mScaleDirection;   // 0: Upscaling; 1: Downscaling
+
+Change-Id: I4834c79effdc6d17b0ffbea1b68f5ac73f582dc9
+---
+ camera/QCamera2/HAL/QCameraParameters.cpp | 10 ++++------
+ camera/QCamera2/HAL/QCameraParameters.h   |  4 +---
+ camera/QCamera2/HAL3/QCamera3Mem.h        |  1 -
+ 3 files changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/camera/QCamera2/HAL/QCameraParameters.cpp b/camera/QCamera2/HAL/QCameraParameters.cpp
+index c115d31..67776a1 100644
+--- a/camera/QCamera2/HAL/QCameraParameters.cpp
++++ b/camera/QCamera2/HAL/QCameraParameters.cpp
+@@ -762,7 +762,7 @@ const QCameraParameters::QCameraMap<int>
+  *==========================================================================*/
+ QCameraParameters::QCameraParameters()
+     : CameraParameters(),
+-      m_reprocScaleParam(this),
++      m_reprocScaleParam(),
+       m_pCapability(NULL),
+       m_pCamOpsTbl(NULL),
+       m_pParamHeap(NULL),
+@@ -871,7 +871,7 @@ QCameraParameters::QCameraParameters()
+  *==========================================================================*/
+ QCameraParameters::QCameraParameters(const String8 &params)
+     : CameraParameters(params),
+-    m_reprocScaleParam(this),
++    m_reprocScaleParam(),
+     m_pCapability(NULL),
+     m_pCamOpsTbl(NULL),
+     m_pParamHeap(NULL),
+@@ -10607,11 +10607,9 @@ int32_t QCameraParameters::commitParamChanges()
+  *
+  * RETURN     : none
+  *==========================================================================*/
+-QCameraReprocScaleParam::QCameraReprocScaleParam(QCameraParameters *parent)
+-  : mParent(parent),
+-    mScaleEnabled(false),
++QCameraReprocScaleParam::QCameraReprocScaleParam()
++  : mScaleEnabled(false),
+     mIsUnderScaling(false),
+-    mScaleDirection(0),
+     mNeedScaleCnt(0),
+     mSensorSizeTblCnt(0),
+     mSensorSizeTbl(NULL),
+diff --git a/camera/QCamera2/HAL/QCameraParameters.h b/camera/QCamera2/HAL/QCameraParameters.h
+index 855c93c..b700ab9 100644
+--- a/camera/QCamera2/HAL/QCameraParameters.h
++++ b/camera/QCamera2/HAL/QCameraParameters.h
+@@ -57,7 +57,7 @@ class QCameraAdjustFPS
+ class QCameraParameters;
+ class QCameraReprocScaleParam{
+ public:
+-    QCameraReprocScaleParam(QCameraParameters *parent);
++    QCameraReprocScaleParam();
+     virtual ~QCameraReprocScaleParam();
+ 
+     virtual void setScaleEnable(bool enabled);
+@@ -84,10 +84,8 @@ class QCameraReprocScaleParam{
+     size_t checkScaleSizeTable(size_t scale_cnt, cam_dimension_t *scale_tbl,
+             size_t org_cnt, cam_dimension_t *org_tbl);
+ 
+-    QCameraParameters *mParent;
+     bool mScaleEnabled;
+     bool mIsUnderScaling;   //if in scale status
+-    bool mScaleDirection;   // 0: Upscaling; 1: Downscaling
+ 
+     // picture size cnt that need scale operation
+     size_t mNeedScaleCnt;
+diff --git a/camera/QCamera2/HAL3/QCamera3Mem.h b/camera/QCamera2/HAL3/QCamera3Mem.h
+index 317b20c..29ce0d1 100644
+--- a/camera/QCamera2/HAL3/QCamera3Mem.h
++++ b/camera/QCamera2/HAL3/QCamera3Mem.h
+@@ -120,7 +120,6 @@ class QCamera3HeapMemory : public QCamera3Memory {
+     int allocOneBuffer(struct QCamera3MemInfo &memInfo,
+             unsigned int heap_id, size_t size);
+     void deallocOneBuffer(struct QCamera3MemInfo &memInfo);
+-    bool mQueueAll;
+     uint32_t mMaxCnt;
+ };
+ 

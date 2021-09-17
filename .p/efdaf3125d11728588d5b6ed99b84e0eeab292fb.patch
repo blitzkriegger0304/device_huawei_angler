@@ -1,0 +1,33 @@
+From efdaf3125d11728588d5b6ed99b84e0eeab292fb Mon Sep 17 00:00:00 2001
+From: Anay Wadhera <anay1018@gmail.com>
+Date: Mon, 29 Jul 2019 17:00:26 -0700
+Subject: [PATCH] angler: camera: depend on generated_kernel_headers
+
+- additionally move camera.msm8994 over to vendor
+
+Change-Id: I1b78a54e27f03830cf354d702a5552bb75678226
+---
+ camera/QCamera2/Android.mk | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/camera/QCamera2/Android.mk b/camera/QCamera2/Android.mk
+index f104fb5..a7129e7 100644
+--- a/camera/QCamera2/Android.mk
++++ b/camera/QCamera2/Android.mk
+@@ -64,7 +64,7 @@ LOCAL_C_INCLUDES += \
+         frameworks/native/include/media/hardware \
+         device/huawei/angler/camera/QCamera2/HAL
+ 
+-LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
++TARGET_HEADER_LIBRARIES := generated_kernel_headers
+ 
+ #LOCAL_STATIC_LIBRARIES := libqcamera2_util
+ LOCAL_C_INCLUDES += \
+@@ -81,6 +81,7 @@ LOCAL_SHARED_LIBRARIES += libqdMetaData libstagefrighthw
+ LOCAL_MODULE_RELATIVE_PATH := hw
+ LOCAL_MODULE := camera.$(TARGET_BOARD_PLATFORM)
+ LOCAL_MODULE_TAGS := optional
++LOCAL_VENDOR_MODULE := true
+ 
+ LOCAL_32_BIT_ONLY := $(BOARD_QTI_CAMERA_32BIT_ONLY)
+ include $(BUILD_SHARED_LIBRARY)

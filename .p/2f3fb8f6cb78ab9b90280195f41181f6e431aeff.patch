@@ -1,0 +1,559 @@
+From 2f3fb8f6cb78ab9b90280195f41181f6e431aeff Mon Sep 17 00:00:00 2001
+From: Elektroschmock <elektroschmock78@googlemail.com>
+Date: Fri, 15 Jun 2018 18:39:35 +0200
+Subject: [PATCH] angler: Light HAL: Introduce brightness scaling properly
+
+* Kernel support for brightness scaling through PWM has been added
+  Rewrite light hal to support it.
+* Also fix notification lights beeing overridden by battery light
+* adjusted for angler by j0sh1x
+
+Change-Id: Iafe3a4f5e1da3bc606c0d4d856871a3e74e8dd6a
+---
+ light/Android.bp              |   8 +-
+ light/Light.cpp               | 213 ++++++++++++++++++++++------------
+ light/Light.h                 |  58 ++++++---
+ light/service.cpp             | 102 +++++++++++++---
+ sepolicy/hal_light_default.te |   3 +-
+ 5 files changed, 273 insertions(+), 111 deletions(-)
+
+diff --git a/light/Android.bp b/light/Android.bp
+index a25d447..ec5d99c 100644
+--- a/light/Android.bp
++++ b/light/Android.bp
+@@ -1,5 +1,5 @@
+ //
+-// Copyright (C) 2017 The LineageOS Project
++// Copyright (C) 2018 The LineageOS Project
+ //
+ // Licensed under the Apache License, Version 2.0 (the "License");
+ // you may not use this file except in compliance with the License.
+@@ -15,19 +15,19 @@
+ 
+ cc_binary {
+     relative_install_path: "hw",
+-    defaults: ["hidl_defaults"],
+     name: "android.hardware.light@2.0-service.angler",
+     proprietary: true,
+     init_rc: ["android.hardware.light@2.0-service.angler.rc"],
+     srcs: ["service.cpp", "Light.cpp"],
+     shared_libs: [
++        "libbase",
++        "libcutils",
+         "libhardware",
+         "libhidlbase",
+         "libhidltransport",
+-        "liblog",
+         "libhwbinder",
+         "libutils",
+         "android.hardware.light@2.0",
+     ],
++    proprietary: true,
+ }
+-
+diff --git a/light/Light.cpp b/light/Light.cpp
+index f9c161a..e1b25f6 100644
+--- a/light/Light.cpp
++++ b/light/Light.cpp
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (C) 2017 The LineageOS Project
++ * Copyright (C) 2018 The LineageOS Project
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -16,11 +16,25 @@
+ 
+ #define LOG_TAG "LightService"
+ 
++#include "Light.h"
++
+ #include <log/log.h>
+ 
+-#include "Light.h"
++namespace {
++using android::hardware::light::V2_0::LightState;
+ 
+-#include <fstream>
++static constexpr int DEFAULT_MAX_BRIGHTNESS = 255;
++
++static uint32_t rgbToBrightness(const LightState& state) {
++    uint32_t color = state.color & 0x00ffffff;
++    return ((77 * ((color >> 16) & 0xff)) + (150 * ((color >> 8) & 0xff)) +
++            (29 * (color & 0xff))) >> 8;
++}
++
++static bool isLit(const LightState& state) {
++    return (state.color & 0x00ffffff);
++}
++}  // anonymous namespace
+ 
+ namespace android {
+ namespace hardware {
+@@ -28,103 +42,153 @@ namespace light {
+ namespace V2_0 {
+ namespace implementation {
+ 
+-#define LEDS            "/sys/class/leds/"
++Light::Light(std::pair<std::ofstream, uint32_t>&& lcd_backlight,
++             std::ofstream&& red_led,
++             std::ofstream&& green_led,
++             std::ofstream&& blue_led,
++             std::ofstream&& red_timer,
++             std::ofstream&& green_timer,
++             std::ofstream&& blue_timer,
++             std::ofstream&& rgb_lock)
++    : mLcdBacklight(std::move(lcd_backlight)),
++      mRedLed(std::move(red_led)),
++      mGreenLed(std::move(green_led)),
++      mBlueLed(std::move(blue_led)),
++      mRedTimer(std::move(red_timer)),
++      mGreenTimer(std::move(green_timer)),
++      mBlueTimer(std::move(blue_timer)),
++      mRgbLock(std::move(rgb_lock)) {
++    auto attnFn(std::bind(&Light::setAttentionLight, this, std::placeholders::_1));
++    auto backlightFn(std::bind(&Light::setLcdBacklight, this, std::placeholders::_1));
++    auto batteryFn(std::bind(&Light::setBatteryLight, this, std::placeholders::_1));
++    auto notifFn(std::bind(&Light::setNotificationLight, this, std::placeholders::_1));
++    mLights.emplace(std::make_pair(Type::ATTENTION, attnFn));
++    mLights.emplace(std::make_pair(Type::BACKLIGHT, backlightFn));
++    mLights.emplace(std::make_pair(Type::BATTERY, batteryFn));
++    mLights.emplace(std::make_pair(Type::NOTIFICATIONS, notifFn));
++}
+ 
+-#define LCD_LED         LEDS "lcd-backlight/"
+-#define RED_LED         LEDS "red/"
+-#define GREEN_LED       LEDS "green/"
+-#define BLUE_LED        LEDS "blue/"
++// Methods from ::android::hardware::light::V2_0::ILight follow.
++Return<Status> Light::setLight(Type type, const LightState& state) {
++    auto it = mLights.find(type);
+ 
+-#define BRIGHTNESS      "brightness"
++    if (it == mLights.end()) {
++        return Status::LIGHT_NOT_SUPPORTED;
++    }
+ 
++    it->second(state);
+ 
+-/*
+- * Write value to path and close file.
+- */
+-static void set(std::string path, std::string value) {
+-    std::ofstream file(path);
+-    file << value;
++    return Status::SUCCESS;
+ }
+ 
+-static void set(std::string path, int value) {
+-    set(path, std::to_string(value));
+-}
++Return<void> Light::getSupportedTypes(getSupportedTypes_cb _hidl_cb) {
++    std::vector<Type> types;
+ 
++    for (auto const& light : mLights) {
++        types.push_back(light.first);
++    }
+ 
+-static uint32_t rgbToBrightness(const LightState& state) {
+-    uint32_t color = state.color & 0x00ffffff;
+-    return ((77 * ((color >> 16) & 0xff)) + (150 * ((color >> 8) & 0xff)) +
+-            (29 * (color & 0xff))) >> 8;
+-}
++    _hidl_cb(types);
+ 
+-static void handleBacklight(const LightState& state) {
+-    uint32_t brightness = rgbToBrightness(state);
+-    set(LCD_LED BRIGHTNESS, brightness);
++    return Void();
+ }
+ 
+-static void handleNotification(const LightState& state) {
+-    uint32_t redBrightness, greenBrightness, blueBrightness;
+-
+-    /*
+-     * Extract brightness from AARRGGBB.
+-     */
+-    redBrightness = (state.color >> 16) & 0xFF;
+-    greenBrightness = (state.color >> 8) & 0xFF;
+-    blueBrightness = state.color & 0xFF;
+-
+-    /*
+-     * Scale RGB brightness
+-     * There is a seperate gpio per led. Each with a maximum brightness of 20.
+-     * The normal rgb values are computed on a scale up to 255 so we divide them
+-     * by 12.75 so that varied brightness per led is spread out evenly per color.
+-     * The led is only optimal on absolute red, green or blue, and produces artifacts
+-     * of two different colors appearing at once when more than one is active, but
+-     * this is very limiting so ultimately we allow the end user full control.
+-     */
+-     redBrightness = (redBrightness / 12.75);
+-     greenBrightness = (greenBrightness / 12.75);
+-     blueBrightness = (blueBrightness / 12.75);
+-
+-     set(RED_LED BRIGHTNESS, redBrightness);
+-     set(GREEN_LED BRIGHTNESS, greenBrightness);
+-     set(BLUE_LED BRIGHTNESS, blueBrightness);
++void Light::setAttentionLight(const LightState& state) {
++    std::lock_guard<std::mutex> lock(mLock);
++    mAttentionState = state;
++    setSpeakerBatteryLightLocked();
+ }
+ 
++void Light::setLcdBacklight(const LightState& state) {
++    std::lock_guard<std::mutex> lock(mLock);
+ 
+-static std::map<Type, std::function<void(const LightState&)>> lights = {
+-    {Type::BACKLIGHT, handleBacklight},
+-    {Type::BATTERY, handleNotification},
+-    {Type::NOTIFICATIONS, handleNotification},
+-    {Type::ATTENTION, handleNotification},
+-};
++    uint32_t brightness = rgbToBrightness(state);
+ 
+-Light::Light() {}
++    // If max panel brightness is not the default (255),
++    // apply linear scaling across the accepted range.
++    if (mLcdBacklight.second != DEFAULT_MAX_BRIGHTNESS) {
++        int old_brightness = brightness;
++        brightness = brightness * mLcdBacklight.second / DEFAULT_MAX_BRIGHTNESS;
++        ALOGV("scaling brightness %d => %d\n", old_brightness, brightness);
++    }
+ 
+-Return<Status> Light::setLight(Type type, const LightState& state) {
+-    auto it = lights.find(type);
++    mLcdBacklight.first << brightness << std::endl;
++}
+ 
+-    if (it == lights.end()) {
+-        return Status::LIGHT_NOT_SUPPORTED;
++void Light::setBatteryLight(const LightState& state) {
++    std::lock_guard<std::mutex> lock(mLock);
++    mBatteryState = state;
++    setSpeakerBatteryLightLocked();
++}
++
++void Light::setNotificationLight(const LightState& state) {
++    std::lock_guard<std::mutex> lock(mLock);
++    mNotificationState = state;
++    setSpeakerBatteryLightLocked();
++}
++
++void Light::setSpeakerBatteryLightLocked() {
++    if (isLit(mNotificationState)) {
++        setSpeakerLightLocked(mNotificationState);
++    } else if (isLit(mAttentionState)) {
++        setSpeakerLightLocked(mAttentionState);
++    } else if (isLit(mBatteryState)) {
++        setSpeakerLightLocked(mBatteryState);
++    } else {
++        // Lights off
++        setRgbLocked(0,0,0,0,0);
+     }
++}
+ 
+-    /*
+-     * Lock global mutex until light state is updated.
+-     */
+-    std::lock_guard<std::mutex> lock(globalLock);
++void Light::setSpeakerLightLocked(const LightState& state) {
++    int red, green, blue;
++    int onMs = 0;
++    int offMs = 0;
++    uint32_t alpha;
++
++    // Extract brightness from AARRGGBB
++    alpha = (state.color >> 24) & 0xff;
++
++    // Retrieve each of the RGB colors
++    red = (state.color >> 16) & 0xff;
++    green = (state.color >> 8) & 0xff;
++    blue = state.color & 0xff;
++
++    // Scale RGB colors if a brightness has been applied by the user
++    if (alpha != 0xff) {
++        red = (red * alpha) / 0xff;
++        green = (green * alpha) / 0xff;
++        blue = (blue * alpha) / 0xff;
++    }
+ 
+-    it->second(state);
++    switch (state.flashMode) {
++        case Flash::TIMED:
++        case Flash::HARDWARE:
++            onMs = state.flashOnMs;
++            offMs = state.flashOffMs;
++            break;
++        case Flash::NONE:
++            if (isLit(state)) {
++                onMs = 1;
++            }
++            break;
++    }
+ 
+-    return Status::SUCCESS;
++    setRgbLocked(red, green, blue, onMs, offMs);
+ }
+ 
+-Return<void> Light::getSupportedTypes(getSupportedTypes_cb _hidl_cb) {
+-    std::vector<Type> types;
++void Light::setRgbLocked(int red, int green, int blue, int on, int off) {
++    mRgbLock << 0 << std::endl;
+ 
+-    for (auto const& light : lights) types.push_back(light.first);
++    mRedLed << red << std::endl;
++    mGreenLed << green << std::endl;
++    mBlueLed << blue << std::endl;
+ 
+-    _hidl_cb(types);
++    mRedTimer << on << " " << off << std::endl;
++    mGreenTimer << on << " " << off << std::endl;
++    mBlueTimer << on << " " << off << std::endl;
+ 
+-    return Void();
++    mRgbLock << 1 << std::endl;
+ }
+ 
+ }  // namespace implementation
+@@ -132,4 +196,3 @@ Return<void> Light::getSupportedTypes(getSupportedTypes_cb _hidl_cb) {
+ }  // namespace light
+ }  // namespace hardware
+ }  // namespace android
+-
+diff --git a/light/Light.h b/light/Light.h
+index bbc31b9..1cdca7e 100644
+--- a/light/Light.h
++++ b/light/Light.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (C) 2017 The LineageOS Project
++ * Copyright (C) 2018 The LineageOS Project
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -13,14 +13,16 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
++
+ #ifndef ANDROID_HARDWARE_LIGHT_V2_0_LIGHT_H
+ #define ANDROID_HARDWARE_LIGHT_V2_0_LIGHT_H
+ 
+ #include <android/hardware/light/2.0/ILight.h>
+-#include <hardware/lights.h>
+ #include <hidl/Status.h>
+-#include <map>
++
++#include <fstream>
+ #include <mutex>
++#include <unordered_map>
+ 
+ namespace android {
+ namespace hardware {
+@@ -28,23 +30,44 @@ namespace light {
+ namespace V2_0 {
+ namespace implementation {
+ 
+-using ::android::hardware::Return;
+-using ::android::hardware::Void;
+-using ::android::hardware::hidl_vec;
+-using ::android::hardware::light::V2_0::ILight;
+-using ::android::hardware::light::V2_0::LightState;
+-using ::android::hardware::light::V2_0::Status;
+-using ::android::hardware::light::V2_0::Type;
++struct Light : public ILight {
++    Light(std::pair<std::ofstream, uint32_t>&& lcd_backlight,
++          std::ofstream&& red_led,
++          std::ofstream&& green_led,
++          std::ofstream&& blue_led,
++          std::ofstream&& red_timer,
++          std::ofstream&& green_timer,
++          std::ofstream&& blue_timer,
++          std::ofstream&& rgb_lock);
+ 
+-class Light : public ILight {
+-  public:
+-    Light();
+-
+-    Return<Status> setLight(Type type, const LightState& state)  override;
+-    Return<void> getSupportedTypes(getSupportedTypes_cb _hidl_cb)  override;
++    // Methods from ::android::hardware::light::V2_0::ILight follow.
++    Return<Status> setLight(Type type, const LightState& state) override;
++    Return<void> getSupportedTypes(getSupportedTypes_cb _hidl_cb) override;
+ 
+   private:
+-    std::mutex globalLock;
++    void setAttentionLight(const LightState& state);
++    void setBatteryLight(const LightState& state);
++    void setLcdBacklight(const LightState& state);
++    void setNotificationLight(const LightState& state);
++    void setSpeakerBatteryLightLocked();
++    void setSpeakerLightLocked(const LightState& state);
++    void setRgbLocked(int red, int green, int blue, int on, int off);
++
++    std::pair<std::ofstream, uint32_t> mLcdBacklight;
++    std::ofstream mRedLed;
++    std::ofstream mGreenLed;
++    std::ofstream mBlueLed;
++    std::ofstream mRedTimer;
++    std::ofstream mGreenTimer;
++    std::ofstream mBlueTimer;
++    std::ofstream mRgbLock;
++
++    LightState mAttentionState;
++    LightState mBatteryState;
++    LightState mNotificationState;
++
++    std::unordered_map<Type, std::function<void(const LightState&)>> mLights;
++    std::mutex mLock;
+ };
+ 
+ }  // namespace implementation
+@@ -54,4 +77,3 @@ class Light : public ILight {
+ }  // namespace android
+ 
+ #endif  // ANDROID_HARDWARE_LIGHT_V2_0_LIGHT_H
+-
+diff --git a/light/service.cpp b/light/service.cpp
+index f3054aa..76fa1e0 100644
+--- a/light/service.cpp
++++ b/light/service.cpp
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2017 The LineageOS Project
++ * Copyright 2018 The LineageOS Project
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -17,35 +17,111 @@
+ #define LOG_TAG "android.hardware.light@2.0-service.angler"
+ 
+ #include <hidl/HidlTransportSupport.h>
++#include <utils/Errors.h>
+ 
+ #include "Light.h"
+ 
++// libhwbinder:
+ using android::hardware::configureRpcThreadpool;
+ using android::hardware::joinRpcThreadpool;
+ 
++// Generated HIDL files
+ using android::hardware::light::V2_0::ILight;
+ using android::hardware::light::V2_0::implementation::Light;
+ 
+-using android::OK;
+-using android::sp;
+-using android::status_t;
++const static std::string kLcdBacklightPath = "/sys/class/leds/lcd-backlight/brightness";
++const static std::string kLcdMaxBacklightPath = "/sys/class/leds/lcd-backlight/max_brightness";
++const static std::string kRedLedPath = "/sys/class/leds/red/brightness";
++const static std::string kGreenLedPath = "/sys/class/leds/green/brightness";
++const static std::string kBlueLedPath = "/sys/class/leds/blue/brightness";
++const static std::string kRedLedTimerPath= "/sys/class/leds/red/on_off_ms";
++const static std::string kGreenLedTimerPath = "/sys/class/leds/green/on_off_ms";
++const static std::string kBlueLedTimerPath = "/sys/class/leds/blue/on_off_ms";
++const static std::string kRgbLockPath = "/sys/class/leds/red/rgb_start";
+ 
+ int main() {
+-    android::sp<ILight> service = new Light();
++    printf("asdf\n");
++    ALOGV("Angler Lights Hal Starting up!");
++    uint32_t lcdMaxBrightness = 255;
++    std::vector<std::ofstream> buttonBacklight;
+ 
++    std::ofstream redLed(kRedLedPath);
++    if (!redLed) {
++        ALOGE("Failed to open %s, error=%d (%s)", kRedLedPath.c_str(), errno, strerror(errno));
++        return -errno;
++    }
++
++    std::ofstream greenLed(kGreenLedPath);
++    if (!greenLed) {
++        ALOGE("Failed to open %s, error=%d (%s)", kGreenLedPath.c_str(), errno, strerror(errno));
++        return -errno;
++    }
++
++    std::ofstream blueLed(kBlueLedPath);
++    if (!blueLed) {
++        ALOGE("Failed to open %s, error=%d (%s)", kBlueLedPath.c_str(), errno, strerror(errno));
++        return -errno;
++    }
++
++    std::ofstream redLedTimer(kRedLedTimerPath);
++        if (!redLedTimer) {
++        ALOGE("Failed to open %s, error=%d (%s)", kRedLedTimerPath.c_str(), errno, strerror(errno));
++        return -errno;
++    }
++
++    std::ofstream greenLedTimer(kGreenLedTimerPath);
++        if (!greenLedTimer) {
++        ALOGE("Failed to open %s, error=%d (%s)", kGreenLedTimerPath.c_str(), errno, strerror(errno));
++        return -errno;
++    }
++
++    std::ofstream blueLedTimer(kBlueLedTimerPath);
++        if (!blueLedTimer) {
++        ALOGE("Failed to open %s, error=%d (%s)", kBlueLedTimerPath.c_str(), errno, strerror(errno));
++        return -errno;
++    }
++
++    std::ofstream rgbLock(kRgbLockPath);
++        if (!rgbLock) {
++        ALOGE("Failed to open %s, error=%d (%s)", kRgbLockPath.c_str(), errno, strerror(errno));
++        return -errno;
++    }
++
++    std::ofstream lcdBacklight(kLcdBacklightPath);
++    if (!lcdBacklight) {
++        ALOGE("Failed to open %s, error=%d (%s)", kLcdBacklightPath.c_str(), errno, strerror(errno));
++        return -errno;
++    }
++
++    std::ifstream lcdMaxBacklight(kLcdMaxBacklightPath);
++    if (!lcdMaxBacklight) {
++        ALOGE("Failed to open %s, error=%d (%s)", kLcdMaxBacklightPath.c_str(), errno, strerror(errno));
++        return -errno;
++    } else {
++        lcdMaxBacklight >> lcdMaxBrightness;
++    }
++
++    android::sp<ILight> service = new Light(
++            {std::move(lcdBacklight), lcdMaxBrightness},
++            std::move(redLed),
++            std::move(greenLed),
++            std::move(blueLed),
++            std::move(redLedTimer),
++            std::move(greenLedTimer),
++            std::move(blueLedTimer),
++            std::move(rgbLock));
+     configureRpcThreadpool(1, true);
+ 
+-    status_t status = service->registerAsService();
+-    if (status != OK) {
+-        ALOGE("Cannot register Light HAL service.");
++    android::status_t status = service->registerAsService();
++
++    if (status != android::OK) {
++       ALOGE("Cannot register Light HAL service");
+         return 1;
+     }
+ 
+-    ALOGI("Light HAL service ready.");
+-
++    ALOGI("Light HAL Ready.");
+     joinRpcThreadpool();
+-
+-    ALOGI("Light HAL service failed to join thread pool.");
++    // Under normal cases, execution will not reach this line.
++    ALOGE("Light HAL failed to join thread pool.");
+     return 1;
+ }
+-
+diff --git a/sepolicy/hal_light_default.te b/sepolicy/hal_light_default.te
+index 30f6408..71f7c86 100644
+--- a/sepolicy/hal_light_default.te
++++ b/sepolicy/hal_light_default.te
+@@ -1 +1,2 @@
+-allow hal_light_default sysfs_leds:file rw_file_perms;
++allow hal_light_default sysfs_qpnp_26:dir open;
++allow hal_light_default sysfs_qpnp_26:file { write getattr open };

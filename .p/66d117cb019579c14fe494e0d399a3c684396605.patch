@@ -1,0 +1,23 @@
+From 66d117cb019579c14fe494e0d399a3c684396605 Mon Sep 17 00:00:00 2001
+From: Giuseppe Maggio <jertlokk@gmail.com>
+Date: Tue, 1 Jan 2019 17:02:03 +0000
+Subject: [PATCH] angler: QCamera: initialise variable 'val_short'
+
+Change-Id: I574bdff9430dce9aad48072ec6b0993367e408a9
+---
+ camera/QCamera2/stack/mm-jpeg-interface/src/mm_jpeg_exif.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/camera/QCamera2/stack/mm-jpeg-interface/src/mm_jpeg_exif.c b/camera/QCamera2/stack/mm-jpeg-interface/src/mm_jpeg_exif.c
+index 043a9de..319b90e 100644
+--- a/camera/QCamera2/stack/mm-jpeg-interface/src/mm_jpeg_exif.c
++++ b/camera/QCamera2/stack/mm-jpeg-interface/src/mm_jpeg_exif.c
+@@ -326,7 +326,7 @@ int process_sensor_data(cam_sensor_params_t *p_sensor_params,
+   }
+ 
+   /*Flash*/
+-  short val_short;
++  short val_short = 0;
+   int flash_mode_exif, flash_fired;
+   if (p_sensor_params->flash_state == CAM_FLASH_STATE_FIRED) {
+     flash_fired = 1;

@@ -1,0 +1,30 @@
+From 6b20422c5b5ee1014aade7658668c820bfea3d50 Mon Sep 17 00:00:00 2001
+From: Anay Wadhera <anay1018@gmail.com>
+Date: Thu, 21 Nov 2019 10:54:16 -0800
+Subject: [PATCH] light: add liblog dependency
+
+Change-Id: I27ac1dbcf431b6bc0f04c129510552d2d6210874
+---
+ light/Android.bp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/light/Android.bp b/light/Android.bp
+index ca64e28..63dc973 100644
+--- a/light/Android.bp
++++ b/light/Android.bp
+@@ -16,7 +16,6 @@
+ cc_binary {
+     relative_install_path: "hw",
+     name: "android.hardware.light@2.0-service.angler",
+-    proprietary: true,
+     init_rc: ["android.hardware.light@2.0-service.angler.rc"],
+     srcs: ["service.cpp", "Light.cpp"],
+     shared_libs: [
+@@ -24,6 +23,7 @@ cc_binary {
+         "libcutils",
+         "libhardware",
+         "libhidlbase",
++        "liblog",
+         "libutils",
+         "android.hardware.light@2.0",
+     ],

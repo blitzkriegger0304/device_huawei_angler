@@ -1,0 +1,36 @@
+From a47c5949b241afb4417f909f744224f95df428bb Mon Sep 17 00:00:00 2001
+From: Mathieu Chartier <mathieuc@google.com>
+Date: Wed, 28 Feb 2018 16:12:03 -0800
+Subject: [PATCH] angler: Fix shared vdex name
+
+The files in arm/arm64 are symlinks and pinning symlinks is not
+supported. Pin the target vdex file intead.
+
+Bug: 73990433
+Test: manual
+Change-Id: I313e1f53487c0a21b615f65dc64c21a1ecb4b7d5
+---
+ overlay/frameworks/base/core/res/res/values/config.xml | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/overlay/frameworks/base/core/res/res/values/config.xml b/overlay/frameworks/base/core/res/res/values/config.xml
+index e6bd550..6ad16e0 100755
+--- a/overlay/frameworks/base/core/res/res/values/config.xml
++++ b/overlay/frameworks/base/core/res/res/values/config.xml
+@@ -391,13 +391,13 @@
+     <!-- Default list of files pinned by the Pinner Service -->
+     <string-array translatable="false" name="config_defaultPinnerServiceFiles">
+         <item>"/system/framework/arm64/boot-framework.oat"</item>
+-        <item>"/system/framework/arm64/boot-framework.vdex"</item>
++        <item>"/system/framework/boot-framework.vdex"</item>
+         <item>"/system/framework/oat/arm64/services.odex"</item>
+         <item>"/system/framework/oat/arm64/services.vdex"</item>
+         <item>"/system/framework/arm64/boot.oat"</item>
+-        <item>"/system/framework/arm64/boot.vdex"</item>
++        <item>"/system/framework/boot.vdex"</item>
+         <item>"/system/framework/arm64/boot-core-libart.oat"</item>
+-        <item>"/system/framework/arm64/boot-core-libart.vdex"</item>
++        <item>"/system/framework/boot-core-libart.vdex"</item>
+     </string-array>
+ 
+     <!-- Enable system navigation keys. -->

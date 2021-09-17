@@ -1,0 +1,44 @@
+From ac3263955259e5597ed988fda24f0070c869c898 Mon Sep 17 00:00:00 2001
+From: Elektroschmock <elektroschmock78@googlemail.com>
+Date: Tue, 27 Mar 2018 19:12:19 +0200
+Subject: [PATCH] angler: Set permissions for light HAL on early-boot
+
+* add extra permissions for other light nodes
+
+Change-Id: I5fa186f74609006a0f4d162600c3e142311bd8ca
+---
+ ...droid.hardware.light@2.0-service.angler.rc | 20 ++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/light/android.hardware.light@2.0-service.angler.rc b/light/android.hardware.light@2.0-service.angler.rc
+index 93af22e..506fe26 100644
+--- a/light/android.hardware.light@2.0-service.angler.rc
++++ b/light/android.hardware.light@2.0-service.angler.rc
+@@ -1,8 +1,26 @@
+-on boot
++on early-boot
++    chown system system /sys/class/leds/red/brightness
+     chmod 664 /sys/class/leds/red/brightness
++    chown system system /sys/class/leds/green/brightness
+     chmod 664 /sys/class/leds/green/brightness
++    chown system system /sys/class/leds/blue/brightness
+     chmod 664 /sys/class/leds/blue/brightness
+ 
++    chown system system /sys/class/leds/red/on_off_ms
++    chmod 664 /sys/class/leds/red/on_off_ms
++    chown system system /sys/class/leds/green/on_off_ms
++    chmod 664 /sys/class/leds/green/on_off_ms
++    chown system system /sys/class/leds/blue/on_off_ms
++    chmod 664 /sys/class/leds/blue/on_off_ms
++
++    chown system system /sys/class/leds/red/rgb_start
++    chmod 664 /sys/class/leds/red/rgb_start
++
++    chown system system /sys/devices/soc.0/fd900000.qcom,mdss_mdp/qcom,mdss_fb_primary.182/leds/lcd-backlight/brightness
++    chmod 664 /sys/devices/soc.0/fd900000.qcom,mdss_mdp/qcom,mdss_fb_primary.182/leds/lcd-backlight/brightness
++    chown system system /sys/devices/soc.0/fd900000.qcom,mdss_mdp/qcom,mdss_fb_primary.182/leds/lcd-backlight/max_brightness
++    chmod 664 /sys/devices/soc.0/fd900000.qcom,mdss_mdp/qcom,mdss_fb_primary.182/leds/lcd-backlight/max_brightness
++
+ service light-hal-2-0 /vendor/bin/hw/android.hardware.light@2.0-service.angler
+     class hal
+     user system

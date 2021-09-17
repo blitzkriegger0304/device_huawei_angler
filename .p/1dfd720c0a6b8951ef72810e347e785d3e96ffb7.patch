@@ -1,0 +1,52 @@
+From 1dfd720c0a6b8951ef72810e347e785d3e96ffb7 Mon Sep 17 00:00:00 2001
+From: Jaekyun Seok <jaekyun@google.com>
+Date: Wed, 30 Aug 2017 10:51:23 +0900
+Subject: [PATCH] angler: Add 'vendor.' prefix to a vendor HAL service name
+
+* To prevent property name collisions between properties of system and
+  vendor, 'vendor.' prefix must be added to a vendor HAL service name.
+  You can see the details in http://go/treble-sysprop-compatibility.
+
+Test: succeeded building and tested on a sailfish device.
+Bug: 36796459
+Change-Id: I48e6ee0ae3fe401e39efb273256d991fac676357
+Signed-off-by: Elektroschmock <elektroschmock78@googlemail.com>
+---
+ dumpstate/android.hardware.dumpstate@1.0-service.angler.rc | 2 +-
+ light/android.hardware.light@2.0-service.angler.rc         | 2 +-
+ power/android.hardware.power@1.1-service.angler.rc         | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/dumpstate/android.hardware.dumpstate@1.0-service.angler.rc b/dumpstate/android.hardware.dumpstate@1.0-service.angler.rc
+index 8fd84b2..915bfef 100644
+--- a/dumpstate/android.hardware.dumpstate@1.0-service.angler.rc
++++ b/dumpstate/android.hardware.dumpstate@1.0-service.angler.rc
+@@ -1,4 +1,4 @@
+-service dumpstate-1-0 /vendor/bin/hw/android.hardware.dumpstate@1.0-service.angler
++service vendor.dumpstate-1-0 /vendor/bin/hw/android.hardware.dumpstate@1.0-service.angler
+     class hal
+     user system
+     group system
+diff --git a/light/android.hardware.light@2.0-service.angler.rc b/light/android.hardware.light@2.0-service.angler.rc
+index 506fe26..e1d553f 100644
+--- a/light/android.hardware.light@2.0-service.angler.rc
++++ b/light/android.hardware.light@2.0-service.angler.rc
+@@ -21,7 +21,7 @@ on early-boot
+     chown system system /sys/devices/soc.0/fd900000.qcom,mdss_mdp/qcom,mdss_fb_primary.182/leds/lcd-backlight/max_brightness
+     chmod 664 /sys/devices/soc.0/fd900000.qcom,mdss_mdp/qcom,mdss_fb_primary.182/leds/lcd-backlight/max_brightness
+ 
+-service light-hal-2-0 /vendor/bin/hw/android.hardware.light@2.0-service.angler
++service vendor.light-hal-2-0 /vendor/bin/hw/android.hardware.light@2.0-service.angler
+     class hal
+     user system
+     group system
+diff --git a/power/android.hardware.power@1.1-service.angler.rc b/power/android.hardware.power@1.1-service.angler.rc
+index e317cbd..d788f83 100644
+--- a/power/android.hardware.power@1.1-service.angler.rc
++++ b/power/android.hardware.power@1.1-service.angler.rc
+@@ -1,4 +1,4 @@
+-service power-hal-1-1 /vendor/bin/hw/android.hardware.power@1.1-service.angler
++service vendor.power-hal-1-1 /vendor/bin/hw/android.hardware.power@1.1-service.angler
+     class hal
+     user system
+     group system

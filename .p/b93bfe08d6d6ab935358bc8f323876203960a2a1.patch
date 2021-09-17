@@ -1,0 +1,300 @@
+From b93bfe08d6d6ab935358bc8f323876203960a2a1 Mon Sep 17 00:00:00 2001
+From: Anay Wadhera <anay1018@gmail.com>
+Date: Thu, 21 Nov 2019 18:40:26 -0800
+Subject: [PATCH] angler-common: enforcing bringup for 10
+
+* rewrite netmgrd policy to go with new blobs
+
+Change-Id: Idf663d5fce5e2b5f53b1c83d9f7f13f0cda5d41f
+---
+ sepolicy/camera.te               |  1 +
+ sepolicy/file.te                 |  1 +
+ sepolicy/file_contexts           |  8 +++++---
+ sepolicy/hal_gnss_default.te     |  2 +-
+ sepolicy/hal_health_default.te   |  7 +++++++
+ sepolicy/hal_light_default.te    |  3 ++-
+ sepolicy/hal_memtrack_default.te |  6 ++++++
+ sepolicy/hal_power_default.te    |  3 +++
+ sepolicy/init-devstart-sh.te     |  3 +++
+ sepolicy/init-devwait-sh.te      |  2 ++
+ sepolicy/init-qseecomd-sh.te     |  3 +++
+ sepolicy/init-radio-sh.te        |  6 ++++--
+ sepolicy/init.te                 |  2 ++
+ sepolicy/nanoapp_cmd.te          |  1 +
+ sepolicy/netd.te                 |  1 +
+ sepolicy/netmgrd.te              | 33 ++++++++++++++++++++++++++++----
+ sepolicy/per_mgr.te              |  1 +
+ sepolicy/per_proxy.te            |  1 +
+ sepolicy/servicemanager.te       |  3 +++
+ sepolicy/ueventd.te              |  1 +
+ 20 files changed, 77 insertions(+), 11 deletions(-)
+ create mode 100644 sepolicy/hal_memtrack_default.te
+ create mode 100644 sepolicy/per_mgr.te
+ create mode 100644 sepolicy/per_proxy.te
+ create mode 100644 sepolicy/servicemanager.te
+
+diff --git a/sepolicy/camera.te b/sepolicy/camera.te
+index 9077351..78b2071 100644
+--- a/sepolicy/camera.te
++++ b/sepolicy/camera.te
+@@ -32,3 +32,4 @@ allow camera persist_data_file:file r_file_perms;
+ allow camera { cameraserver surfaceflinger }:fd use;
+ hal_client_domain(camera, hal_graphics_allocator)
+ allow camera hal_renderscript_hwservice:hwservice_manager find;
++allow camera hal_camera_default:fd use;
+diff --git a/sepolicy/file.te b/sepolicy/file.te
+index 217fa51..015fee9 100644
+--- a/sepolicy/file.te
++++ b/sepolicy/file.te
+@@ -7,6 +7,7 @@ type firmware_file, fs_type, contextmount_type;
+ type ims_socket, file_type;
+ type irqbalance_socket, file_type;
+ type netmgrd_socket, file_type;
++type netmgrd_data_file, file_type, data_file_type, core_data_file_type;
+ type perfd_data_file, file_type, data_file_type, core_data_file_type;
+ type persist_file, file_type;
+ type persist_audio_file, file_type;
+diff --git a/sepolicy/file_contexts b/sepolicy/file_contexts
+index 5c31d46..4e5a78f 100644
+--- a/sepolicy/file_contexts
++++ b/sepolicy/file_contexts
+@@ -130,9 +130,10 @@
+ /vendor/bin/ATFWD-daemon                 u:object_r:atfwd_exec:s0
+ /vendor/bin/cnd                          u:object_r:cnd_exec:s0
+ /vendor/bin/hw/android\.hardware\.dumpstate@1\.0-service\.angler      u:object_r:hal_dumpstate_default_exec:s0
+-/vendor/bin/hw/android\.hardware\.health@2\.0-service\.angler    u:object_r:hal_health_default_exec:s0
+-/vendor/bin/hw/android\.hardware\.light@2\.0-service\.angler        u:object_r:hal_light_default_exec:s0
+-/vendor/bin/hw/android\.hardware\.power@1\.1-service\.angler      u:object_r:hal_power_default_exec:s0
++/vendor/bin/hw/android\.hardware\.health@2\.0-service\.angler         u:object_r:hal_health_default_exec:s0
++/vendor/bin/hw/android\.hardware\.light@2\.0-service\.angler          u:object_r:hal_light_default_exec:s0
++/vendor/bin/hw/android\.hardware\.power@1\.1-service\.angler          u:object_r:hal_power_default_exec:s0
++/vendor/bin/hw/android\.hardware\.thermal@2\.0-service\.mock          u:object_r:hal_thermal_default_exec:s0
+ /vendor/bin/imscmservice                 u:object_r:ims_exec:s0
+ /vendor/bin/imsdatadaemon                u:object_r:ims_exec:s0
+ /vendor/bin/imsqmidaemon                 u:object_r:ims_exec:s0
+@@ -172,6 +173,7 @@
+ # Data files
+ /data/diag_logs(/.*)?            u:object_r:diag_logs:s0
+ /data/fpc(/.*)?                  u:object_r:fingerprintd_data_file:s0
++/data/misc/netmgr(/.*)?          u:object_r:netmgrd_data_file:s0
+ /data/misc/perfd(/.*)?           u:object_r:perfd_data_file:s0
+ /data/misc/radio(/.*)?           u:object_r:radio_data_file:s0
+ /data/nfc(/.*)?                  u:object_r:nfc_data_file:s0
+diff --git a/sepolicy/hal_gnss_default.te b/sepolicy/hal_gnss_default.te
+index 9f93c90..0f6fae2 100644
+--- a/sepolicy/hal_gnss_default.te
++++ b/sepolicy/hal_gnss_default.te
+@@ -1 +1 @@
+-allow hal_gnss_default qmuxd_socket:dir search;
++allow hal_gnss_default qmuxd_socket:dir { search write };
+diff --git a/sepolicy/hal_health_default.te b/sepolicy/hal_health_default.te
+index c15fb19..c9faf60 100644
+--- a/sepolicy/hal_health_default.te
++++ b/sepolicy/hal_health_default.te
+@@ -1,2 +1,9 @@
+ r_dir_file(hal_health_default, sysfs_batteryinfo)
+ allow hal_health_default sysfs_batteryinfo:file w_file_perms;
++allow hal_health_default sysfs:file { getattr open read };
++allow hal_health_default sysfs_battery:dir search;
++allow hal_health_default sysfs_battery:file { getattr open read };
++allow hal_health_default sysfs_battery:lnk_file read;
++allow hal_health_default sysfs_thermal:dir search;
++allow hal_health_default sysfs_thermal:file { getattr open read };
++
+diff --git a/sepolicy/hal_light_default.te b/sepolicy/hal_light_default.te
+index 71f7c86..3cf7bdd 100644
+--- a/sepolicy/hal_light_default.te
++++ b/sepolicy/hal_light_default.te
+@@ -1,2 +1,3 @@
+-allow hal_light_default sysfs_qpnp_26:dir open;
++allow hal_light_default sysfs_qpnp_26:dir { open search };
+ allow hal_light_default sysfs_qpnp_26:file { write getattr open };
++
+diff --git a/sepolicy/hal_memtrack_default.te b/sepolicy/hal_memtrack_default.te
+new file mode 100644
+index 0000000..68c4c8b
+--- /dev/null
++++ b/sepolicy/hal_memtrack_default.te
+@@ -0,0 +1,6 @@
++allow hal_memtrack_default hal_configstore_default:file read;
++allow hal_memtrack_default hwservicemanager:file read;
++allow hal_memtrack_default idmap:file read;
++allow hal_memtrack_default servicemanager:file read;
++allow hal_memtrack_default system_app:file read;
++allow hal_memtrack_default vndservicemanager:file read;
+diff --git a/sepolicy/hal_power_default.te b/sepolicy/hal_power_default.te
+index 058d549..8e3ac8e 100644
+--- a/sepolicy/hal_power_default.te
++++ b/sepolicy/hal_power_default.te
+@@ -1 +1,4 @@
+ allow hal_power_default debugfs_rpm:file { open read getattr };
++allow hal_power_default perfd:unix_stream_socket connectto;
++allow hal_power_default perfd_data_file:sock_file write;
++allow hal_power_default perfd_data_file:dir search;
+diff --git a/sepolicy/init-devstart-sh.te b/sepolicy/init-devstart-sh.te
+index 8a9cd54..5e5639e 100644
+--- a/sepolicy/init-devstart-sh.te
++++ b/sepolicy/init-devstart-sh.te
+@@ -13,3 +13,6 @@ set_prop(init-qcom-devstart-sh, system_prop)
+ 
+ # Set boot_adsp and boot_slpi to 1
+ allow init-qcom-devstart-sh sysfs_msm_subsys:file w_file_perms;
++
++allow init-qcom-devstart-sh vendor_file:dir read;
++
+diff --git a/sepolicy/init-devwait-sh.te b/sepolicy/init-devwait-sh.te
+index 8b36671..17afe82 100644
+--- a/sepolicy/init-devwait-sh.te
++++ b/sepolicy/init-devwait-sh.te
+@@ -7,3 +7,5 @@ allow init-qcom-devwait-sh vendor_shell_exec:file rx_file_perms;
+ 
+ # execute toybox/toolbox
+ allow init-qcom-devwait-sh vendor_toolbox_exec:file rx_file_perms;
++
++allow init-qcom-devwait-sh vendor_file:dir read;
+diff --git a/sepolicy/init-qseecomd-sh.te b/sepolicy/init-qseecomd-sh.te
+index a3ccaf2..967f124 100644
+--- a/sepolicy/init-qseecomd-sh.te
++++ b/sepolicy/init-qseecomd-sh.te
+@@ -7,3 +7,6 @@ allow init-angler-qseecomd-sh vendor_shell_exec:file rx_file_perms;
+ 
+ # execute toybox/toolbox
+ allow init-angler-qseecomd-sh vendor_toolbox_exec:file rx_file_perms;
++
++allow init-angler-qseecomd-sh vendor_file:dir read;
++
+diff --git a/sepolicy/init-radio-sh.te b/sepolicy/init-radio-sh.te
+index 7d8ce6b..1f8b28f 100644
+--- a/sepolicy/init-radio-sh.te
++++ b/sepolicy/init-radio-sh.te
+@@ -8,5 +8,7 @@ allow init-radio-sh vendor_shell_exec:file rx_file_perms;
+ 
+ allow init-radio-sh vendor_toolbox_exec:file rx_file_perms;
+ 
+-allow init-radio-sh radio_data_file:dir rw_dir_perms;
+-allow init-radio-sh radio_data_file:file create_file_perms;
++allow init-radio-sh vendor_file:dir read;
++allow init-radio-sh radio_data_file:file open;
++allow init-radio-sh radio_data_file:file { getattr write };
++allow init-radio-sh radio_data_file:dir search;
+diff --git a/sepolicy/init.te b/sepolicy/init.te
+index 56d03dd..bc7bc68 100644
+--- a/sepolicy/init.te
++++ b/sepolicy/init.te
+@@ -42,3 +42,5 @@ allow init persist_file:dir mounton;
+ allow init userdata_block_device:blk_file { write };
+ 
+ allow init persist_block_device:lnk_file relabelto;
++allow init sysfs_dm:file { open write };
++
+diff --git a/sepolicy/nanoapp_cmd.te b/sepolicy/nanoapp_cmd.te
+index c4f5b3e..0c02bdd 100644
+--- a/sepolicy/nanoapp_cmd.te
++++ b/sepolicy/nanoapp_cmd.te
+@@ -6,3 +6,4 @@ init_daemon_domain(nanoapp_cmd)
+ allow nanoapp_cmd sensors_device:chr_file rw_file_perms;
+ allow nanoapp_cmd sysfs_nanoapp_cmd:dir search;
+ allow nanoapp_cmd sysfs_nanoapp_cmd:file rw_file_perms;
++allow nanoapp_cmd vendor_file:dir read;
+diff --git a/sepolicy/netd.te b/sepolicy/netd.te
+index 81be11b..8f832a4 100644
+--- a/sepolicy/netd.te
++++ b/sepolicy/netd.te
+@@ -4,3 +4,4 @@ dontaudit netd self:capability sys_module;
+ allow netd sysfs_wlan_fwpath:file w_file_perms;
+ # For /sys/devices/virtual/net/rmnet_data0/mtu
+ allow netd sysfs_wifi_mtu:file rw_file_perms; 
++allow netd device:file { open write };
+diff --git a/sepolicy/netmgrd.te b/sepolicy/netmgrd.te
+index 2477042..83e9c5c 100644
+--- a/sepolicy/netmgrd.te
++++ b/sepolicy/netmgrd.te
+@@ -1,5 +1,5 @@
+ # Network utilities (radio process)
+-type netmgrd, domain, device_domain_deprecated;
++type netmgrd, domain;
+ type netmgrd_exec, exec_type, vendor_file_type, file_type;
+ 
+ # Started by init
+@@ -8,17 +8,35 @@ init_daemon_domain(netmgrd)
+ net_domain(netmgrd)
+ allowxperm netmgrd self:udp_socket ioctl priv_sock_ioctls;
+ 
+-allow netmgrd self:capability { setuid setgid net_admin net_raw sys_module };
+-dontaudit netmgrd self:capability setpcap;
++allow netmgrd self:capability { setuid setgid net_admin net_raw sys_module setpcap };
+ 
+ set_prop(netmgrd, net_radio_prop)
+ 
++# Access sysfs
++allow netmgrd sysfs:file { getattr open read };
++
++#Acquire lock on /system/etc/xtables.lock
++#Required till netutils wrappers are available
++not_full_treble(`allow netmgrd system_file:file lock;')
++
++# use netutils
++domain_auto_trans(netmgrd, netutils_wrapper_exec, netutils_wrapper)
++allow netutils_wrapper netmgrd:fd use;
++allow netutils_wrapper netmgrd:fifo_file { read write getattr };
++allow netutils_wrapper netmgrd:netlink_route_socket { read write };
++allow netutils_wrapper netmgrd:unix_stream_socket { read write };
++allow netutils_wrapper netmgrd:netlink_generic_socket { read write };
++allow netutils_wrapper netmgrd:netlink_xfrm_socket { read write };
++allow netutils_wrapper netmgrd:udp_socket { read write };
++allow netutils_wrapper netmgrd:tcp_socket { read write };
++allow netutils_wrapper netmgrd_data_file:file rw_file_perms;
++allow netmgrd netutils_wrapper:process sigkill;
++
+ allow netmgrd self:netlink_socket create_socket_perms_no_ioctl;
+ allow netmgrd self:netlink_route_socket nlmsg_write;
+ allow netmgrd self:netlink_xfrm_socket { create_socket_perms_no_ioctl nlmsg_write nlmsg_read};
+ allow netmgrd self:socket create_socket_perms;
+ allowxperm netmgrd self:socket ioctl msm_sock_ipc_ioctls;
+-#allow netmgrd netd_socket:sock_file w_file_perms;
+ allow netmgrd net_data_file:dir r_dir_perms;
+ allow netmgrd net_data_file:file r_file_perms;
+ 
+@@ -45,3 +63,10 @@ allow netmgrd toolbox_exec:file rx_file_perms;
+ 
+ #Allow netmgrd to use wakelock
+ wakelock_use(netmgrd)
++
++#Allow netmgrd to use netd HAL via HIDL
++get_prop(netmgrd, hwservicemanager_prop)
++binder_use(netmgrd)
++binder_call(netmgrd, netd)
++binder_call(netmgrd, servicemanager)
++allow netmgrd system_net_netd_hwservice:hwservice_manager find;
+diff --git a/sepolicy/per_mgr.te b/sepolicy/per_mgr.te
+new file mode 100644
+index 0000000..e71e3e5
+--- /dev/null
++++ b/sepolicy/per_mgr.te
+@@ -0,0 +1 @@
++allow per_mgr device:file { open write };
+diff --git a/sepolicy/per_proxy.te b/sepolicy/per_proxy.te
+new file mode 100644
+index 0000000..55c767f
+--- /dev/null
++++ b/sepolicy/per_proxy.te
+@@ -0,0 +1 @@
++allow per_proxy device:file { open write };
+diff --git a/sepolicy/servicemanager.te b/sepolicy/servicemanager.te
+new file mode 100644
+index 0000000..76dad9c
+--- /dev/null
++++ b/sepolicy/servicemanager.te
+@@ -0,0 +1,3 @@
++allow servicemanager netmgrd:dir search;
++allow servicemanager netmgrd:file { open read };
++allow servicemanager netmgrd:process getattr;
+diff --git a/sepolicy/ueventd.te b/sepolicy/ueventd.te
+index 3f1467e..d61ff42 100644
+--- a/sepolicy/ueventd.te
++++ b/sepolicy/ueventd.te
+@@ -8,3 +8,4 @@ allow ueventd sysfs_fingerprintd:file rw_file_perms;
+ allow ueventd sysfs_nanoapp_cmd:file w_file_perms;
+ allow ueventd vfat:dir search;
+ allow ueventd vfat:file { getattr open read }; 
++allow ueventd proc:file { getattr open read };

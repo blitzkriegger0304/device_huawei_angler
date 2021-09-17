@@ -1,0 +1,30 @@
+From 45d72e75350f4710e0b777dac023fbedd7e69b49 Mon Sep 17 00:00:00 2001
+From: Giuseppe Maggio <jertlokk@gmail.com>
+Date: Tue, 1 Jan 2019 17:21:12 +0000
+Subject: [PATCH] angler: QCamera: use new GNU field designator for open
+
+device/huawei/angler/camera/QCamera2/QCamera2Factory.cpp:377:5: error:
+use of GNU old-style field designator extension
+[-Werror,-Wgnu-designator]
+    open: QCamera2Factory::camera_device_open,
+    ^~~~~
+    .open =
+
+Change-Id: I2595faf56577ffc41b06592ab8650a6df5fdd1df
+---
+ camera/QCamera2/QCamera2Factory.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/camera/QCamera2/QCamera2Factory.cpp b/camera/QCamera2/QCamera2Factory.cpp
+index 6101036..c8f3076 100644
+--- a/camera/QCamera2/QCamera2Factory.cpp
++++ b/camera/QCamera2/QCamera2Factory.cpp
+@@ -374,7 +374,7 @@ int QCamera2Factory::camera_device_open(
+ }
+ 
+ struct hw_module_methods_t QCamera2Factory::mModuleMethods = {
+-    open: QCamera2Factory::camera_device_open,
++    .open = QCamera2Factory::camera_device_open,
+ };
+ 
+ /*===========================================================================

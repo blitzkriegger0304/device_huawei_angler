@@ -1,0 +1,68 @@
+From 835d26f6a6418b535752606f2767b36b543b1f25 Mon Sep 17 00:00:00 2001
+From: Steven Moreland <smoreland@google.com>
+Date: Tue, 1 Oct 2019 11:01:16 -0700
+Subject: [PATCH] angler: Remove libhwbinder/libhidltransport deps
+
+Since these were combined into libhidlbase.
+
+Bug: 135686713
+Test: build only (libhwbinder/libhidltransport are empty)
+Change-Id: I640a3f0e0839214523627bf0b59fd5ae9dd2c61c
+---
+ health/Android.bp | 2 --
+ light/Android.bp  | 4 +---
+ power/Android.mk  | 3 +--
+ 3 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/health/Android.bp b/health/Android.bp
+index a4be830..8dc73aa 100644
+--- a/health/Android.bp
++++ b/health/Android.bp
+@@ -39,8 +39,6 @@ cc_binary {
+         "libbase",
+         "libcutils",
+         "libhidlbase",
+-        "libhidltransport",
+-        "libhwbinder",
+         "libutils",
+         "android.hardware.health@2.0",
+     ],
+diff --git a/light/Android.bp b/light/Android.bp
+index ec5d99c..ca64e28 100644
+--- a/light/Android.bp
++++ b/light/Android.bp
+@@ -1,5 +1,5 @@
+ //
+-// Copyright (C) 2018 The LineageOS Project
++// Copyright (C) 2018-2019 The LineageOS Project
+ //
+ // Licensed under the Apache License, Version 2.0 (the "License");
+ // you may not use this file except in compliance with the License.
+@@ -24,8 +24,6 @@ cc_binary {
+         "libcutils",
+         "libhardware",
+         "libhidlbase",
+-        "libhidltransport",
+-        "libhwbinder",
+         "libutils",
+         "android.hardware.light@2.0",
+     ],
+diff --git a/power/Android.mk b/power/Android.mk
+index 6562a88..81b51c3 100644
+--- a/power/Android.mk
++++ b/power/Android.mk
+@@ -1,5 +1,5 @@
+ # Copyright (C) 2017 The Android Open Source Project
+-# Copyright (C) 2017-2018 The LineageOS Project
++# Copyright (C) 2017-2019 The LineageOS Project
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+@@ -24,7 +24,6 @@ LOCAL_SHARED_LIBRARIES := \
+     libdl \
+     libxml2 \
+     libhidlbase \
+-    libhidltransport \
+     libhardware \
+     libhwbinder \
+     libutils

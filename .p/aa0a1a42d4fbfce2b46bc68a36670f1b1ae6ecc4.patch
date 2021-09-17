@@ -1,0 +1,27 @@
+From aa0a1a42d4fbfce2b46bc68a36670f1b1ae6ecc4 Mon Sep 17 00:00:00 2001
+From: Giuseppe Maggio <jertlokk@gmail.com>
+Date: Wed, 2 Jan 2019 12:04:12 +0000
+Subject: [PATCH] angler: QCamera: build with -Wno-unused-label
+
+There are certain labels that get called by external stuff, clang
+obviously throw a warning simply because they are not used in this
+scope.
+
+Change-Id: Idc607a49518763a4797a84c695618fc79088b8e1
+---
+ camera/QCamera2/Android.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/camera/QCamera2/Android.mk b/camera/QCamera2/Android.mk
+index 3b397d8..f777763 100644
+--- a/camera/QCamera2/Android.mk
++++ b/camera/QCamera2/Android.mk
+@@ -38,7 +38,7 @@ LOCAL_SRC_FILES += \
+         HAL/QCameraParameters.cpp \
+         HAL/QCameraThermalAdapter.cpp
+ 
+-LOCAL_CFLAGS := -Wall -Wextra -Werror
++LOCAL_CFLAGS := -Wall -Wextra -Werror -Wno-unused-label
+ LOCAL_CFLAGS += -DHAS_MULTIMEDIA_HINTS
+ LOCAL_CFLAGS += -DENABLE_MODEL_INFO_EXIF
+ 

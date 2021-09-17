@@ -1,0 +1,28 @@
+From d2e6bfcee3627f407f1edf575c06c32f22adaedc Mon Sep 17 00:00:00 2001
+From: aviraxp <416810799@qq.com>
+Date: Thu, 7 Nov 2019 20:00:18 +0100
+Subject: [PATCH] Extend sphal search paths for media swcodec
+
+ * Legacy devices do not have vndk-sp, so we have to add
+   /system/{LIB} to sphal search paths to make sure linker
+   can find the according libraries successfully.
+
+Change-Id: I2e9a9eea47702b3271f142457ba97649466ca14e
+---
+ configs/ld.config.txt | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/configs/ld.config.txt b/configs/ld.config.txt
+index a5937fd..f9124ab 100644
+--- a/configs/ld.config.txt
++++ b/configs/ld.config.txt
+@@ -90,6 +90,9 @@ namespace.sphal.search.paths += /odm/${LIB}/vndk-sp
+ namespace.sphal.search.paths += /vendor/${LIB}/vndk-sp
+ namespace.sphal.search.paths += /system/${LIB}/vndk-sp${VNDK_VER}
+ 
++# Legacy devices do not have vndk-sp, so add /system/${LIB} to search path instead
++namespace.sphal.search.paths += /system/${LIB}
++
+ namespace.sphal.permitted.paths += /odm/${LIB}/hw
+ namespace.sphal.permitted.paths += /odm/${LIB}/egl
+ namespace.sphal.permitted.paths += /vendor/${LIB}/hw

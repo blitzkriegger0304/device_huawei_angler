@@ -1,0 +1,3562 @@
+From de9cdb0693fcdeb5db4ddf363a70fab360d43350 Mon Sep 17 00:00:00 2001
+From: Anay Wadhera <anay1018@gmail.com>
+Date: Fri, 4 Oct 2019 11:07:51 -0700
+Subject: [PATCH] angler: import fresh powerhal from common CAF tree
+
+Change-Id: I27fd58e90161314359c2cde376f803a55623d86c
+---
+ device.mk                                     |   3 +-
+ power/Android.mk                              |  88 +-
+ power/Power.cpp                               | 268 ++++++
+ power/Power.h                                 |  69 ++
+ ...droid.hardware.power@1.1-service.angler.rc |   4 +
+ power/hint-data.c                             |   4 +-
+ power/hint-data.h                             |  23 +-
+ power/list.c                                  |  33 +-
+ power/list.h                                  |   2 -
+ power/metadata-defs.h                         |   2 +-
+ power/metadata-parser.c                       |  19 +-
+ power/performance.h                           | 153 ++++
+ power/power-8992.c                            | 147 ----
+ power/power-8994.c                            | 347 +++++---
+ power/power-common.h                          |  34 +-
+ power/power-feature.h                         |  24 +
+ power/power-helper.c                          | 554 +++++++++++++
+ power/power-helper.h                          | 144 ++++
+ power/power.c                                 | 770 ------------------
+ power/service.cpp                             |  75 ++
+ power/utils.c                                 | 252 ++++--
+ power/utils.h                                 |  24 +-
+ sepolicy/file.te                              |   2 +
+ sepolicy/file_contexts                        |   1 +
+ sepolicy/genfs_contexts                       |   5 +
+ sepolicy/hal_power_default.te                 |   1 +
+ 26 files changed, 1878 insertions(+), 1170 deletions(-)
+ create mode 100644 power/Power.cpp
+ create mode 100644 power/Power.h
+ create mode 100644 power/android.hardware.power@1.1-service.angler.rc
+ delete mode 100644 power/power-8992.c
+ create mode 100644 power/power-feature.h
+ create mode 100644 power/power-helper.c
+ create mode 100644 power/power-helper.h
+ delete mode 100644 power/power.c
+ create mode 100644 power/service.cpp
+ create mode 100644 sepolicy/hal_power_default.te
+
+diff --git a/device.mk b/device.mk
+index ce2d563..e412c16 100644
+--- a/device.mk
++++ b/device.mk
+@@ -329,8 +329,7 @@ PRODUCT_PACKAGES += \
+ 
+ # Power HAL
+ PRODUCT_PACKAGES += \
+-    power.angler \
+-    android.hardware.power@1.0-impl \
++    android.hardware.power@1.1-service.angler
+ 
+ # Thermal HAL
+ #PRODUCT_PACKAGES += \
+diff --git a/power/Android.mk b/power/Android.mk
+index 4369199..6562a88 100644
+--- a/power/Android.mk
++++ b/power/Android.mk
+@@ -1,29 +1,91 @@
++# Copyright (C) 2017 The Android Open Source Project
++# Copyright (C) 2017-2018 The LineageOS Project
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#      http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
+ LOCAL_PATH := $(call my-dir)
+ 
+-# HAL module implemenation stored in
+-# hw/<POWERS_HARDWARE_MODULE_ID>.<ro.hardware>.so
+ include $(CLEAR_VARS)
+ 
+ LOCAL_MODULE_RELATIVE_PATH := hw
+-LOCAL_MULTILIB := both
+-LOCAL_SHARED_LIBRARIES := liblog libcutils libdl
+-LOCAL_SRC_FILES := power.c metadata-parser.c utils.c list.c hint-data.c
++LOCAL_SHARED_LIBRARIES := \
++    liblog \
++    libcutils \
++    libdl \
++    libxml2 \
++    libhidlbase \
++    libhidltransport \
++    libhardware \
++    libhwbinder \
++    libutils
++
++LOCAL_SRC_FILES := \
++    service.cpp \
++    Power.cpp \
++    power-helper.c \
++    metadata-parser.c \
++    utils.c \
++    list.c \
++    hint-data.c
++
++LOCAL_C_INCLUDES := external/libxml2/include \
++                    external/icu/icu4c/source/common
+ 
+-# Include target-specific files.
++LOCAL_CFLAGS += -Wall -Wextra -Werror
+ 
+-ifeq ($(call is-board-platform-in-list, msm8994), true)
+ LOCAL_SRC_FILES += power-8994.c
++
++ifeq ($(TARGET_USES_INTERACTION_BOOST),true)
++    LOCAL_CFLAGS += -DINTERACTION_BOOST
+ endif
+ 
+-ifeq ($(call is-board-platform-in-list, msm8992), true)
+-LOCAL_SRC_FILES += power-8992.c
++ifneq ($(TARGET_TAP_TO_WAKE_NODE),)
++    LOCAL_CFLAGS += -DTAP_TO_WAKE_NODE=\"$(TARGET_TAP_TO_WAKE_NODE)\"
+ endif
+ 
+-ifeq ($(TARGET_USES_INTERACTION_BOOST),true)
+-    LOCAL_CFLAGS += -DINTERACTION_BOOST
++ifeq ($(TARGET_HAS_LEGACY_POWER_STATS),true)
++    LOCAL_CFLAGS += -DLEGACY_STATS
++endif
++
++ifeq ($(TARGET_HAS_NO_POWER_STATS),true)
++    LOCAL_CFLAGS += -DNO_STATS
++endif
++
++ifneq ($(TARGET_RPM_STAT),)
++    LOCAL_CFLAGS += -DRPM_STAT=\"$(TARGET_RPM_STAT)\"
++endif
++
++ifneq ($(TARGET_RPM_MASTER_STAT),)
++    LOCAL_CFLAGS += -DRPM_MASTER_STAT=\"$(TARGET_RPM_MASTER_STAT)\"
++endif
++
++ifneq ($(TARGET_RPM_SYSTEM_STAT),)
++    LOCAL_CFLAGS += -DRPM_SYSTEM_STAT=\"$(TARGET_RPM_SYSTEM_STAT)\"
++endif
++
++ifneq ($(TARGET_WLAN_POWER_STAT),)
++    LOCAL_CFLAGS += -DWLAN_POWER_STAT=\"$(TARGET_WLAN_POWER_STAT)\"
++endif
++
++ifeq ($(TARGET_HAS_NO_WLAN_STATS),true)
++LOCAL_CFLAGS += -DNO_WLAN_STATS
+ endif
+ 
+-LOCAL_MODULE := power.angler
++LOCAL_MODULE := android.hardware.power@1.1-service.angler
++LOCAL_INIT_RC := android.hardware.power@1.1-service.angler.rc
++LOCAL_SHARED_LIBRARIES += android.hardware.power@1.1 vendor.lineage.power@1.0
+ LOCAL_MODULE_TAGS := optional
++LOCAL_MODULE_OWNER := qcom
+ LOCAL_VENDOR_MODULE := true
+-include $(BUILD_SHARED_LIBRARY)
++LOCAL_HEADER_LIBRARIES := libhardware_headers
++include $(BUILD_EXECUTABLE)
+diff --git a/power/Power.cpp b/power/Power.cpp
+new file mode 100644
+index 0000000..f1731ca
+--- /dev/null
++++ b/power/Power.cpp
+@@ -0,0 +1,268 @@
++/*
++ * Copyright (C) 2017 The Android Open Source Project
++ * Copyright (C) 2017-2018 The LineageOS Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#define LOG_TAG "android.hardware.power@1.1-service.angler"
++
++// #define LOG_NDEBUG 0
++
++#include <log/log.h>
++#include "Power.h"
++#include "power-common.h"
++#include "power-helper.h"
++
++/* RPM runs at 19.2Mhz. Divide by 19200 for msec */
++#define RPM_CLK 19200
++
++extern struct stat_pair rpm_stat_map[];
++
++namespace android {
++namespace hardware {
++namespace power {
++namespace V1_1 {
++namespace implementation {
++
++using ::android::hardware::power::V1_0::Feature;
++using ::android::hardware::power::V1_0::PowerHint;
++using ::android::hardware::power::V1_0::PowerStatePlatformSleepState;
++using ::android::hardware::power::V1_0::Status;
++using ::android::hardware::power::V1_1::PowerStateSubsystem;
++using ::android::hardware::hidl_vec;
++using ::android::hardware::Return;
++using ::android::hardware::Void;
++
++Power::Power() {
++    power_init();
++}
++
++// Methods from ::android::hardware::power::V1_0::IPower follow.
++Return<void> Power::setInteractive(bool interactive)  {
++    power_set_interactive(interactive ? 1 : 0);
++    return Void();
++}
++
++Return<void> Power::powerHint(PowerHint hint, int32_t data) {
++    power_hint(static_cast<power_hint_t>(hint), data ? (&data) : NULL);
++    return Void();
++}
++
++Return<void> Power::setFeature(Feature feature, bool activate)  {
++    set_feature(static_cast<feature_t>(feature), activate ? 1 : 0);
++    return Void();
++}
++
++Return<void> Power::getPlatformLowPowerStats(getPlatformLowPowerStats_cb _hidl_cb) {
++    hidl_vec<PowerStatePlatformSleepState> states;
++#ifdef NO_STATS
++    states.resize(0);
++    _hidl_cb(states, Status::SUCCESS);
++    return Void();
++#else
++    uint64_t stats[MAX_PLATFORM_STATS * MAX_RPM_PARAMS] = {0};
++#ifndef LEGACY_STATS
++    uint64_t *values;
++#endif
++    struct PowerStatePlatformSleepState *state;
++    int ret;
++
++    ret = extract_platform_stats(stats);
++    if (ret != 0) {
++        states.resize(0);
++        goto done;
++    }
++
++#ifdef LEGACY_STATS
++    states.resize(RPM_MODE_MAX);
++
++    /* Update statistics for XO_shutdown */
++    state = &states[RPM_MODE_XO];
++    state->name = "XO_shutdown";
++
++    state->residencyInMsecSinceBoot = stats[ACCUMULATED_VLOW_TIME];
++    state->totalTransitions = stats[VLOW_COUNT];
++    state->supportedOnlyInSuspend = false;
++    state->voters.resize(XO_VOTERS);
++
++    /* Update statistics for APSS voter */
++    state->voters[0].name = "APSS";
++    state->voters[0].totalTimeInMsecVotedForSinceBoot =
++        stats[XO_ACCUMULATED_DURATION_APSS] / RPM_CLK;
++    state->voters[0].totalNumberOfTimesVotedSinceBoot = stats[XO_COUNT_APSS];
++
++    /* Update statistics for MPSS voter */
++    state->voters[1].name = "MPSS";
++    state->voters[1].totalTimeInMsecVotedForSinceBoot =
++        stats[XO_ACCUMULATED_DURATION_MPSS] / RPM_CLK;
++    state->voters[1].totalNumberOfTimesVotedSinceBoot = stats[XO_COUNT_MPSS];
++
++    /* Update statistics for ADSP voter */
++    state->voters[2].name = "ADSP";
++    state->voters[2].totalTimeInMsecVotedForSinceBoot =
++        stats[XO_ACCUMULATED_DURATION_ADSP] / RPM_CLK;
++    state->voters[2].totalNumberOfTimesVotedSinceBoot = stats[XO_COUNT_ADSP];
++
++    /* Update statistics for SLPI voter */
++    state->voters[3].name = "SLPI";
++    state->voters[3].totalTimeInMsecVotedForSinceBoot =
++        stats[XO_ACCUMULATED_DURATION_SLPI] / RPM_CLK;
++    state->voters[3].totalNumberOfTimesVotedSinceBoot = stats[XO_COUNT_SLPI];
++
++    /* Update statistics for VMIN state */
++    state = &states[RPM_MODE_VMIN];
++
++    state->name = "VMIN";
++    state->residencyInMsecSinceBoot = stats[ACCUMULATED_VMIN_TIME];
++    state->totalTransitions = stats[VMIN_COUNT];
++    state->supportedOnlyInSuspend = false;
++    state->voters.resize(VMIN_VOTERS);
++    //Note: No filling of state voters since VMIN_VOTERS = 0
++#else
++    states.resize(PLATFORM_SLEEP_MODES_COUNT);
++
++    /* Update statistics for XO_shutdown */
++    state = &states[RPM_MODE_XO];
++    state->name = "XO_shutdown";
++    values = stats + (RPM_MODE_XO * MAX_RPM_PARAMS);
++
++    state->residencyInMsecSinceBoot = values[1];
++    state->totalTransitions = values[0];
++    state->supportedOnlyInSuspend = false;
++    state->voters.resize(XO_VOTERS);
++    for(size_t i = 0; i < XO_VOTERS; i++) {
++        int voter = i + XO_VOTERS_START;
++        state->voters[i].name = rpm_stat_map[voter].label;
++        values = stats + (voter * MAX_RPM_PARAMS);
++        state->voters[i].totalTimeInMsecVotedForSinceBoot = values[0] / RPM_CLK;
++        state->voters[i].totalNumberOfTimesVotedSinceBoot = values[1];
++    }
++
++    /* Update statistics for VMIN state */
++    state = &states[RPM_MODE_VMIN];
++    state->name = "VMIN";
++    values = stats + (RPM_MODE_VMIN * MAX_RPM_PARAMS);
++
++    state->residencyInMsecSinceBoot = values[1];
++    state->totalTransitions = values[0];
++    state->supportedOnlyInSuspend = false;
++    state->voters.resize(VMIN_VOTERS);
++    //Note: No filling of state voters since VMIN_VOTERS = 0
++#endif
++done:
++    _hidl_cb(states, Status::SUCCESS);
++    return Void();
++#endif
++}
++
++// Methods from ::android::hardware::power::V1_1::IPower follow.
++
++#ifndef NO_WLAN_STATS
++static int get_wlan_low_power_stats(struct PowerStateSubsystem &subsystem) {
++
++    uint64_t stats[WLAN_POWER_PARAMS_COUNT] = {0};
++    struct PowerStateSubsystemSleepState *state;
++    int ret;
++
++    ret = extract_wlan_stats(stats);
++    if (ret)
++        return ret;
++
++    subsystem.name = "wlan";
++    subsystem.states.resize(WLAN_STATES_COUNT);
++
++    /* Update statistics for Active State */
++    state = &subsystem.states[WLAN_STATE_ACTIVE];
++    state->name = "Active";
++    state->residencyInMsecSinceBoot = stats[CUMULATIVE_TOTAL_ON_TIME_MS];
++    state->totalTransitions = stats[DEEP_SLEEP_ENTER_COUNTER];
++    state->lastEntryTimestampMs = 0; //FIXME need a new value from Qcom
++    state->supportedOnlyInSuspend = false;
++
++    /* Update statistics for Deep-Sleep state */
++    state = &subsystem.states[WLAN_STATE_DEEP_SLEEP];
++    state->name = "Deep-Sleep";
++    state->residencyInMsecSinceBoot = stats[CUMULATIVE_SLEEP_TIME_MS];
++    state->totalTransitions = stats[DEEP_SLEEP_ENTER_COUNTER];
++    state->lastEntryTimestampMs = stats[LAST_DEEP_SLEEP_ENTER_TSTAMP_MS];
++    state->supportedOnlyInSuspend = false;
++
++    return 0;
++}
++#endif
++
++Return<void> Power::getSubsystemLowPowerStats(getSubsystemLowPowerStats_cb _hidl_cb) {
++    hidl_vec<PowerStateSubsystem> subsystems;
++#ifdef NO_WLAN_STATS
++    subsystems.resize(0);
++    _hidl_cb(subsystems, Status::SUCCESS);
++    return Void();
++#else
++    int ret;
++
++    subsystems.resize(subsystem_type::SUBSYSTEM_COUNT);
++
++    //We currently have only one Subsystem for WLAN
++    ret = get_wlan_low_power_stats(subsystems[subsystem_type::SUBSYSTEM_WLAN]);
++    if (ret != 0)
++        goto done;
++
++    //Add query for other subsystems here
++
++done:
++    _hidl_cb(subsystems, Status::SUCCESS);
++    return Void();
++#endif
++}
++
++Return<void> Power::powerHintAsync(PowerHint hint, int32_t data) {
++    // just call the normal power hint in this oneway function
++    return powerHint(hint, data);
++}
++
++Return<int32_t> Power::getFeature(LineageFeature feature)  {
++    if (feature == LineageFeature::SUPPORTED_PROFILES) {
++        return get_number_of_profiles();
++    }
++    return -1;
++}
++
++status_t Power::registerAsSystemService() {
++    status_t ret = 0;
++
++    ret = IPower::registerAsService();
++    if (ret != 0) {
++        ALOGE("Failed to register IPower (%d)", ret);
++        goto fail;
++    } else {
++        ALOGI("Successfully registered IPower");
++    }
++
++    ret = ILineagePower::registerAsService();
++    if (ret != 0) {
++        ALOGE("Failed to register ILineagePower (%d)", ret);
++        goto fail;
++    } else {
++        ALOGI("Successfully registered ILineagePower");
++    }
++
++fail:
++    return ret;
++}
++
++}  // namespace implementation
++}  // namespace V1_1
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
+diff --git a/power/Power.h b/power/Power.h
+new file mode 100644
+index 0000000..95bb7aa
+--- /dev/null
++++ b/power/Power.h
+@@ -0,0 +1,69 @@
++/*
++ * Copyright (C) 2017 The Android Open Source Project
++ * Copyright (C) 2017-2018 The LineageOS Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#ifndef ANDROID_HARDWARE_POWER_V1_1_POWER_H
++#define ANDROID_HARDWARE_POWER_V1_1_POWER_H
++
++#include <android/hardware/power/1.1/IPower.h>
++#include <vendor/lineage/power/1.0/ILineagePower.h>
++#include <hidl/MQDescriptor.h>
++#include <hidl/Status.h>
++#include <hardware/power.h>
++
++namespace android {
++namespace hardware {
++namespace power {
++namespace V1_1 {
++namespace implementation {
++
++using ::android::hardware::power::V1_0::Feature;
++using ::android::hardware::power::V1_0::PowerHint;
++using ::android::hardware::power::V1_1::IPower;
++using ::vendor::lineage::power::V1_0::ILineagePower;
++using ::vendor::lineage::power::V1_0::LineageFeature;
++using ::android::hardware::Return;
++using ::android::hardware::Void;
++
++struct Power : public IPower, public ILineagePower {
++    // Methods from ::android::hardware::power::V1_0::IPower follow.
++
++    Power();
++    status_t registerAsSystemService();
++
++    Return<void> setInteractive(bool interactive) override;
++    Return<void> powerHint(PowerHint hint, int32_t data) override;
++    Return<void> setFeature(Feature feature, bool activate) override;
++    Return<void> getPlatformLowPowerStats(getPlatformLowPowerStats_cb _hidl_cb) override;
++
++    // Methods from ::android::hardware::power::V1_1::IPower follow.
++    Return<void> getSubsystemLowPowerStats(getSubsystemLowPowerStats_cb _hidl_cb) override;
++    Return<void> powerHintAsync(PowerHint hint, int32_t data) override;
++
++    // Methods from ::vendor::lineage::power::V1_0::ILineagePower follow.
++    Return<int32_t> getFeature(LineageFeature feature) override;
++
++    // Methods from ::android::hidl::base::V1_0::IBase follow.
++
++};
++
++}  // namespace implementation
++}  // namespace V1_0/1
++}  // namespace power
++}  // namespace hardware
++}  // namespace android
++
++#endif  // ANDROID_HARDWARE_POWER_V1_1_POWER_H
+diff --git a/power/android.hardware.power@1.1-service.angler.rc b/power/android.hardware.power@1.1-service.angler.rc
+new file mode 100644
+index 0000000..e317cbd
+--- /dev/null
++++ b/power/android.hardware.power@1.1-service.angler.rc
+@@ -0,0 +1,4 @@
++service power-hal-1-1 /vendor/bin/hw/android.hardware.power@1.1-service.angler
++    class hal
++    user system
++    group system
+diff --git a/power/hint-data.c b/power/hint-data.c
+index 67da77a..bd41cf0 100644
+--- a/power/hint-data.c
++++ b/power/hint-data.c
+@@ -27,6 +27,8 @@
+  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
++#include <log/log.h>
++
+ #include "hint-data.h"
+ 
+ int hint_compare(struct hint_data *first_hint,
+@@ -43,5 +45,5 @@ int hint_compare(struct hint_data *first_hint,
+ 
+ void hint_dump(struct hint_data *hint)
+ {
+-    /*ALOGI("hint_id: %lu", hint->hint_id);*/
++    ALOGV("hint_id: %lu", hint->hint_id);
+ }
+diff --git a/power/hint-data.h b/power/hint-data.h
+index 2a8113a..61e064d 100644
+--- a/power/hint-data.h
++++ b/power/hint-data.h
+@@ -1,5 +1,6 @@
+ /*
+- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2012, 2013, 2015, 2017, The Linux Foundation. All rights reserved.
++ * Copyright (C) 2018 The LineageOS Project
+  *
+  * Redistribution and use in source and binary forms, with or without
+  * modification, are permitted provided that the following conditions are
+@@ -32,6 +33,26 @@
+ #define DEFAULT_VIDEO_DECODE_HINT_ID    (0x0B00)
+ #define DISPLAY_STATE_HINT_ID           (0x0C00)
+ #define DISPLAY_STATE_HINT_ID_2         (0x0D00)
++#define CAM_PREVIEW_HINT_ID             (0x0E00)
++#define SUSTAINED_PERF_HINT_ID          (0x0F00)
++#define VR_MODE_HINT_ID                 (0x1000)
++#define VR_MODE_SUSTAINED_PERF_HINT_ID  (0x1001)
++
++#define AOSP_DELTA                      (0x1200)
++
++#define VSYNC_HINT                      AOSP_DELTA + POWER_HINT_VSYNC
++#define INTERACTION_HINT                AOSP_DELTA + POWER_HINT_INTERACTION
++#define VIDEO_DECODE_HINT               AOSP_DELTA + POWER_HINT_VIDEO_DECODE
++#define VIDEO_ENCODE_HINT               AOSP_DELTA + POWER_HINT_VIDEO_ENCODE
++#define LOW_POWER_HINT                  AOSP_DELTA + POWER_HINT_LOW_POWER
++#define SUSTAINED_PERF_HINT             AOSP_DELTA + POWER_HINT_SUSTAINED_PERFORMANCE
++#define VR_MODE_HINT                    AOSP_DELTA + POWER_HINT_VR_MODE
++#define LAUNCH_HINT                     AOSP_DELTA + POWER_HINT_LAUNCH
++#define DISABLE_TOUCH_HINT              AOSP_DELTA + POWER_HINT_DISABLE_TOUCH
++
++#define VR_MODE_SUSTAINED_PERF_HINT    (0x1301)
++
++#define DEFAULT_PROFILE_HINT_ID         (0xFF00)
+ 
+ struct hint_data {
+     unsigned long hint_id; /* This is our key. */
+diff --git a/power/list.c b/power/list.c
+index 0fe8de2..1e9ba13 100644
+--- a/power/list.c
++++ b/power/list.c
+@@ -32,17 +32,7 @@
+ #include <string.h>
+ 
+ #include "list.h"
+-#include <utils/Log.h>
+-
+-int init_list_head(struct list_node *head)
+-{
+-    if (head == NULL)
+-        return -1;
+-
+-    memset(head, 0, sizeof(*head));
+-
+-    return 0;
+-}
++#include <log/log.h>
+ 
+ struct list_node *add_list_node(struct list_node *head, void *data)
+ {
+@@ -66,11 +56,6 @@ struct list_node *add_list_node(struct list_node *head, void *data)
+     return new_node;
+ }
+ 
+-int is_list_empty(struct list_node *head)
+-{
+-    return (head == NULL || head->next == NULL);
+-}
+-
+ /*
+  * Delink and de-allocate 'node'.
+  */
+@@ -107,22 +92,6 @@ int remove_list_node(struct list_node *head, struct list_node *del_node)
+     return 0;
+ }
+ 
+-void dump_list(struct list_node *head)
+-{
+-    struct list_node *current_node = head;
+-
+-    if (head == NULL)
+-        return;
+-
+-    printf("List:\n");
+-
+-    while ((current_node = current_node->next)) {
+-        if (current_node->dump) {
+-            current_node->dump(current_node->data);
+-        }
+-    }
+-}
+-
+ struct list_node *find_node(struct list_node *head, void *comparison_data)
+ {
+     struct list_node *current_node = head;
+diff --git a/power/list.h b/power/list.h
+index d68c3df..acd02fe 100644
+--- a/power/list.h
++++ b/power/list.h
+@@ -34,8 +34,6 @@ struct list_node {
+     void (*dump)(void *data);
+ };
+ 
+-int init_list_head(struct list_node *head);
+ struct list_node * add_list_node(struct list_node *head, void *data);
+ int remove_list_node(struct list_node *head, struct list_node *del_node);
+-void dump_list(struct list_node *head);
+ struct list_node *find_node(struct list_node *head, void *comparison_data);
+diff --git a/power/metadata-defs.h b/power/metadata-defs.h
+index c464900..e3ce944 100644
+--- a/power/metadata-defs.h
++++ b/power/metadata-defs.h
+@@ -47,7 +47,7 @@ struct video_decode_metadata_t {
+ };
+ 
+ int parse_metadata(char *metadata, char **metadata_saveptr,
+-    char *attribute, int attribute_size, char *value, int value_size);
++    char *attribute, unsigned int attribute_size, char *value, unsigned int value_size);
+ int parse_video_encode_metadata(char *metadata,
+     struct video_encode_metadata_t *video_encode_metadata);
+ int parse_video_decode_metadata(char *metadata,
+diff --git a/power/metadata-parser.c b/power/metadata-parser.c
+index b456184..ffe092b 100644
+--- a/power/metadata-parser.c
++++ b/power/metadata-parser.c
+@@ -34,7 +34,7 @@
+ #include "metadata-defs.h"
+ 
+ int parse_metadata(char *metadata, char **metadata_saveptr,
+-        char *attribute, int attribute_size, char *value, int value_size)
++        char *attribute, unsigned int attribute_size, char *value, unsigned int value_size)
+ {
+     char *attribute_string;
+     char *attribute_value_delim;
+@@ -50,17 +50,12 @@ int parse_metadata(char *metadata, char **metadata_saveptr,
+ 
+     if ((attribute_value_delim = strchr(attribute_string,
+                     ATTRIBUTE_VALUE_DELIM)) != NULL) {
+-        bytes_to_copy = MIN((attribute_value_delim - attribute_string),
+-                attribute_size - 1);
+-        strncpy(attribute, attribute_string,
+-                bytes_to_copy);
+-        attribute[bytes_to_copy] = '\0';
+-
+-        bytes_to_copy = MIN(strlen(attribute_string) - strlen(attribute) - 1,
+-                value_size - 1);
+-        strncpy(value, attribute_value_delim + 1,
+-                bytes_to_copy);
+-        value[bytes_to_copy] = '\0';
++        unsigned int attribute_len = (unsigned int) (attribute_value_delim - attribute_string);
++        /* copy only attribute len + NUL character, or as much as can be fit */
++        bytes_to_copy = MIN(attribute_len + 1, attribute_size);
++
++        strlcpy(attribute, attribute_string, bytes_to_copy);
++        strlcpy(value, attribute_value_delim + 1, value_size);
+     }
+ 
+     return METADATA_PARSING_CONTINUE;
+diff --git a/power/performance.h b/power/performance.h
+index 53ecdc3..461ae31 100644
+--- a/power/performance.h
++++ b/power/performance.h
+@@ -1,4 +1,5 @@
+ /* Copyright (c) 2012, 2014, The Linux Foundation. All rights reserved.
++ * Copyright (C) 2018 The LineageOS Project
+  *
+  * Redistribution and use in source and binary forms, with or without
+  * modification, are permitted provided that the following conditions are
+@@ -35,6 +36,28 @@ extern "C" {
+ #define SUCCESS                 0
+ #define INDEFINITE_DURATION     0
+ 
++/* Hints sent to perf HAL from power HAL
++ * These have to be kept in sync with Perf HAL side definitions
++ */
++#define VENDOR_HINT_DISPLAY_OFF      0x00001040
++#define VENDOR_HINT_DISPLAY_ON       0x00001041
++
++#define VENDOR_HINT_FIRST_LAUNCH_BOOST  0x00001081
++#define VENDOR_HINT_SCROLL_BOOST        0x00001080
++
++enum LAUNCH_BOOST_TYPE {
++    LAUNCH_BOOST_V1 = 1,
++    LAUNCH_BOOST_V2 = 2,
++    LAUNCH_BOOST_V3 = 3
++};
++
++enum SCROLL_BOOST_TYPE {
++    SCROLL_VERTICAL     = 1,
++    SCROLL_HORIZONTAL   = 2,
++    SCROLL_PANEL_VIEW   = 3,
++    SCROLL_PREFILING    = 4
++};
++
+ enum SCREEN_DISPLAY_TYPE {
+     DISPLAY_OFF = 0x00FF,
+ };
+@@ -136,8 +159,49 @@ enum INTERACTIVE_TIMER_RATE_LVL {
+     TR_MS_20 = 0xEFD,
+ };
+ 
++/* This timer rate applicable to cpu0
++    across 8939 series chipset */
++enum INTERACTIVE_TIMER_RATE_LVL_CPU0_8939 {
++    TR_MS_CPU0_500 = 0x30CD,
++    TR_MS_CPU0_100 = 0x30F5,
++    TR_MS_CPU0_50 = 0x30FA,
++    TR_MS_CPU0_30 = 0x30FC,
++    TR_MS_CPU0_20 = 0x30FD,
++};
++
++/* This timer rate applicable to cpu4
++    across 8939 series chipset */
++enum INTERACTIVE_TIMER_RATE_LVL_CPU4_8939 {
++    TR_MS_CPU4_500 = 0x3BCD,
++    TR_MS_CPU4_100 = 0x3BF5,
++    TR_MS_CPU4_50 = 0x3BFA,
++    TR_MS_CPU4_30 = 0x3BFC,
++    TR_MS_CPU4_20 = 0x3BFD,
++};
++
++/* This timer rate applicable to big.little arch */
++enum INTERACTIVE_TIMER_RATE_LVL_BIG_LITTLE {
++    BIG_LITTLE_TR_MS_100 = 0x64,
++    BIG_LITTLE_TR_MS_50 = 0x32,
++    BIG_LITTLE_TR_MS_40 = 0x28,
++    BIG_LITTLE_TR_MS_30 = 0x1E,
++    BIG_LITTLE_TR_MS_20 = 0x14,
++};
++
++/* INTERACTIVE opcodes */
++enum INTERACTIVE_OPCODES {
++    INT_OP_CLUSTER0_TIMER_RATE = 0x41424000,
++    INT_OP_CLUSTER1_TIMER_RATE = 0x41424100,
++    INT_OP_CLUSTER0_USE_SCHED_LOAD = 0x41430000,
++    INT_OP_CLUSTER1_USE_SCHED_LOAD = 0x41430100,
++    INT_OP_CLUSTER0_USE_MIGRATION_NOTIF = 0x41434000,
++    INT_OP_CLUSTER1_USE_MIGRATION_NOTIF = 0x41434100,
++    INT_OP_NOTIFY_ON_MIGRATE = 0x4241C000
++};
++
+ enum INTERACTIVE_HISPEED_FREQ_LVL {
+     HS_FREQ_1026 = 0xF0A,
++    HS_FREQ_800  = 0xF08,
+ };
+ 
+ enum INTERACTIVE_HISPEED_LOAD_LVL {
+@@ -214,6 +278,95 @@ enum CPU7_MAX_FREQ_LVL {
+     CPU7_MAX_FREQ_NONTURBO_MAX = 0x260A,
+ };
+ 
++enum SCHED_PREFER_IDLE {
++    SCHED_PREFER_IDLE_DIS = 0x3E01,
++};
++
++enum SCHED_MIGRATE_COST_CHNG {
++    SCHED_MIGRATE_COST_SET = 0x3F01,
++};
++
++/**
++ * MPCTL v3 opcodes
++ */
++/* 0x1 */
++enum POWER_COLLAPSE {
++    ALL_CPUS_PWR_CLPS_DIS_V3 = 0x40400000,
++};
++
++/* 0x2 */
++enum CPUFREQ {
++    MIN_FREQ_BIG_CORE_0                 = 0x40800000,
++    MIN_FREQ_BIG_CORE_0_RESIDX          = 0x40802000,
++    MIN_FREQ_LITTLE_CORE_0              = 0x40800100,
++    MIN_FREQ_LITTLE_CORE_0_RESIDX       = 0x40802100,
++    MAX_FREQ_BIG_CORE_0                 = 0x40804000,
++    MAX_FREQ_BIG_CORE_0_RESIDX          = 0x40806000,
++    MAX_FREQ_LITTLE_CORE_0              = 0x40804100,
++    MAX_FREQ_LITTLE_CORE_0_RESIDX       = 0x40806100,
++};
++
++/* 0x3 */
++enum SCHED {
++    SCHED_BOOST_ON_V3                   = 0x40C00000,
++    SCHED_PREFER_IDLE_DIS_V3            = 0x40C04000,
++    SCHED_MIGRATE_COST_SET_V3           = 0x40C08000,
++    SCHED_SMALL_TASK                    = 0x40C0C000,
++    SCHED_MOSTLY_IDLE_LOAD              = 0x40C10000,
++    SCHED_MOSTLY_IDLE_NR_RUN            = 0x40C14000,
++    SCHED_GROUP_ON                      = 0x40C28000,
++    SCHED_SPILL_NR_RUN                  = 0x40C2C000,
++    SCHED_RESTRICT_CLUSTER_SPILL        = 0x40C34000,
++    SCHED_GROUP_UP_MIGRATE              = 0x40C54000,
++    SCHED_GROUP_DOWN_MIGRATE            = 0x40C58000,
++};
++
++/* 0x4 */
++enum CORE_HOTPLUG {
++    CPUS_ONLINE_MIN_BIG                 = 0x41000000,
++    CPUS_ONLINE_MAX_BIG                 = 0x41004000,
++    CPUS_ONLINE_MIN_LITTLE              = 0x41000100,
++    CPUS_ONLINE_MAX_LITTLE              = 0x41004100,
++};
++
++/* 0x5 */
++enum INTERACTIVE {
++    ABOVE_HISPEED_DELAY_BIG             = 0x41400000,
++    ABOVE_HISPEED_DELAY_BIG_RESIDX      = 0x41402000,
++    GO_HISPEED_LOAD_BIG                 = 0x41410000,
++    HISPEED_FREQ_BIG                    = 0x41414000,
++    TARGET_LOADS_BIG                    = 0x41420000,
++    IGNORE_HISPEED_NOTIF_BIG            = 0x41438000,
++    ABOVE_HISPEED_DELAY_LITTLE          = 0x41400100,
++    ABOVE_HISPEED_DELAY_LITTLE_RESIDX   = 0x41402100,
++    GO_HISPEED_LOAD_LITTLE              = 0x41410100,
++    HISPEED_FREQ_LITTLE                 = 0x41414100,
++    TARGET_LOADS_LITTLE                 = 0x41420100,
++    IGNORE_HISPEED_NOTIF_LITTLE         = 0x41438100,
++};
++
++/* 0x6 */
++enum CPUBW_HWMON {
++    CPUBW_HWMON_MIN_FREQ                = 0x41800000,
++    CPUBW_HWMON_MIN_FREQ_RESIDX         = 0x41802000,
++    CPUBW_HWMON_HYST_OPT                = 0x4180C000,
++    LOW_POWER_CEIL_MBPS                 = 0x41810000,
++    LOW_POWER_IO_PERCENT                = 0x41814000,
++    CPUBW_HWMON_SAMPLE_MS               = 0x41820000,
++};
++
++/* 0xA */
++enum GPU {
++    GPU_MIN_POWER_LEVEL                 = 0x42804000,
++    GPU_MAX_POWER_LEVEL                 = 0x42808000,
++    GPU_MIN_FREQ                        = 0x4280C000,
++    GPU_MIN_FREQ_RESIDX                 = 0x4280E000,
++    GPU_MAX_FREQ                        = 0x42810000,
++    GPU_MAX_FREQ_RESIDX                 = 0x42812000,
++    GPUBW_MIN_FREQ                      = 0x42814000,
++    GPUBW_MAX_FREQ                      = 0x42818000,
++};
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/power/power-8992.c b/power/power-8992.c
+deleted file mode 100644
+index c07b4fd..0000000
+--- a/power/power-8992.c
++++ /dev/null
+@@ -1,147 +0,0 @@
+-/*
+- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+- *
+- * Redistribution and use in source and binary forms, with or without
+- * modification, are permitted provided that the following conditions are
+- * met:
+- * *    * Redistributions of source code must retain the above copyright
+- *       notice, this list of conditions and the following disclaimer.
+- *     * Redistributions in binary form must reproduce the above
+- *       copyright notice, this list of conditions and the following
+- *       disclaimer in the documentation and/or other materials provided
+- *       with the distribution.
+- *     * Neither the name of The Linux Foundation nor the names of its
+- *       contributors may be used to endorse or promote products derived
+- *       from this software without specific prior written permission.
+- *
+- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+- */
+-#define LOG_NIDEBUG 0
+-
+-#include <errno.h>
+-#include <string.h>
+-#include <sys/types.h>
+-#include <sys/stat.h>
+-#include <fcntl.h>
+-#include <dlfcn.h>
+-#include <stdlib.h>
+-
+-#define LOG_TAG "QCOM PowerHAL"
+-#include <utils/Log.h>
+-#include <hardware/hardware.h>
+-#include <hardware/power.h>
+-
+-#include "utils.h"
+-#include "metadata-defs.h"
+-#include "hint-data.h"
+-#include "performance.h"
+-#include "power-common.h"
+-
+-static int display_hint_sent;
+-
+-static int process_video_encode_hint(void *metadata)
+-{
+-    char governor[80];
+-    struct video_encode_metadata_t video_encode_metadata;
+-
+-    if (get_scaling_governor(governor, sizeof(governor)) == -1) {
+-        ALOGE("Can't obtain scaling governor.");
+-
+-        return HINT_NONE;
+-    }
+-
+-    /* Initialize encode metadata struct fields */
+-    memset(&video_encode_metadata, 0, sizeof(struct video_encode_metadata_t));
+-    video_encode_metadata.state = -1;
+-    video_encode_metadata.hint_id = DEFAULT_VIDEO_ENCODE_HINT_ID;
+-
+-    if (metadata) {
+-        if (parse_video_encode_metadata((char *)metadata, &video_encode_metadata) ==
+-            -1) {
+-            ALOGE("Error occurred while parsing metadata.");
+-            return HINT_NONE;
+-        }
+-    } else {
+-        return HINT_NONE;
+-    }
+-
+-    if (video_encode_metadata.state == 1) {
+-        if ((strncmp(governor, INTERACTIVE_GOVERNOR, strlen(INTERACTIVE_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(INTERACTIVE_GOVERNOR))) {
+-            /* sched and cpufreq params
+-             * A57 - offlines
+-             * A53 - 4 cores online at 1.2GHz
+-             */
+-            int resource_values[] = {0x150C, 0x160C, 0x170C, 0x180C, 0x3DFF};
+-
+-            perform_hint_action(video_encode_metadata.hint_id,
+-                    resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
+-            return HINT_HANDLED;
+-        }
+-    } else if (video_encode_metadata.state == 0) {
+-        if ((strncmp(governor, INTERACTIVE_GOVERNOR, strlen(INTERACTIVE_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(INTERACTIVE_GOVERNOR))) {
+-            undo_hint_action(video_encode_metadata.hint_id);
+-            return HINT_HANDLED;
+-        }
+-    }
+-    return HINT_NONE;
+-}
+-
+-int power_hint_override(struct power_module *module, power_hint_t hint, void *data)
+-{
+-    int ret_val = HINT_NONE;
+-    switch(hint) {
+-        case POWER_HINT_VIDEO_ENCODE:
+-            ret_val = process_video_encode_hint(data);
+-            break;
+-        default:
+-            break;
+-    }
+-    return ret_val;
+-}
+-
+-int set_interactive_override(struct power_module *module, int on)
+-{
+-    return HINT_HANDLED; /* Don't excecute this code path, not in use */
+-    char governor[80];
+-
+-    if (get_scaling_governor(governor, sizeof(governor)) == -1) {
+-        ALOGE("Can't obtain scaling governor.");
+-
+-        return HINT_NONE;
+-    }
+-
+-    if (!on) {
+-        /* Display off */
+-        if ((strncmp(governor, INTERACTIVE_GOVERNOR, strlen(INTERACTIVE_GOVERNOR)) == 0) &&
+-            (strlen(governor) == strlen(INTERACTIVE_GOVERNOR))) {
+-            int resource_values[] = {0x41004000, 0x0}; /* 4+0 core config in display off */
+-            if (!display_hint_sent) {
+-                perform_hint_action(DISPLAY_STATE_HINT_ID,
+-                resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
+-                display_hint_sent = 1;
+-                return HINT_HANDLED;
+-            }
+-        }
+-    } else {
+-        /* Display on */
+-        if ((strncmp(governor, INTERACTIVE_GOVERNOR, strlen(INTERACTIVE_GOVERNOR)) == 0) &&
+-            (strlen(governor) == strlen(INTERACTIVE_GOVERNOR))) {
+-            undo_hint_action(DISPLAY_STATE_HINT_ID);
+-            display_hint_sent = 0;
+-            return HINT_HANDLED;
+-        }
+-    }
+-    return HINT_NONE;
+-}
+diff --git a/power/power-8994.c b/power/power-8994.c
+index a64ae2e..6669cda 100644
+--- a/power/power-8994.c
++++ b/power/power-8994.c
+@@ -1,5 +1,6 @@
+ /*
+- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2014, The Linux Foundation. All rights reserved.
++ * Copyright (C) 2018 The LineageOS Project
+  *
+  * Redistribution and use in source and binary forms, with or without
+  * modification, are permitted provided that the following conditions are
+@@ -26,20 +27,20 @@
+  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
++
+ #define LOG_NIDEBUG 0
+ 
+ #include <errno.h>
++#include <time.h>
+ #include <string.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <fcntl.h>
+ #include <dlfcn.h>
+ #include <stdlib.h>
+-#include <pthread.h>
+-#include <stdbool.h>
+ 
+-#define LOG_TAG "QCOMPowerHAL"
+-#include <utils/Log.h>
++#define LOG_TAG "QCOM PowerHAL"
++#include <log/log.h>
+ #include <hardware/hardware.h>
+ #include <hardware/power.h>
+ 
+@@ -49,161 +50,281 @@
+ #include "performance.h"
+ #include "power-common.h"
+ 
+-pthread_mutex_t video_encode_lock = PTHREAD_MUTEX_INITIALIZER;
+-uintptr_t video_encode_hint_counter = 0;
+-bool video_encode_hint_should_enable = false;
+-bool video_encode_hint_is_enabled = false;
+-
+-static int new_hint_id = DEFAULT_VIDEO_ENCODE_HINT_ID;
+-static int cur_hint_id = DEFAULT_VIDEO_ENCODE_HINT_ID;
+-
+-static const time_t VIDEO_ENCODE_DELAY_SECONDS = 2;
+-static const time_t VIDEO_ENCODE_DELAY_NSECONDS = 0;
+-
+-static void* video_encode_hint_function(void* arg) {
+-    struct timespec tv = {0};
+-    tv.tv_sec = VIDEO_ENCODE_DELAY_SECONDS;
+-    tv.tv_nsec = VIDEO_ENCODE_DELAY_NSECONDS;
+-    int nanosleep_ret = 0;
+-    uintptr_t expected_counter = (uintptr_t)arg;
+-
+-    // delay the hint for two seconds
+-    // the hint hotplugs the large CPUs, so this prevents the large CPUs from
+-    // going offline until the camera has had time to startup
+-    TEMP_FAILURE_RETRY(nanosleep(&tv, &tv));
+-    pthread_mutex_lock(&video_encode_lock);
+-
+-    // check to ensure we should still turn on hint from this particular thread
+-    // if should_enable is true but counter is different, another thread owns hint
+-    // if should_enable is false, we've already quit the camera
+-    if (video_encode_hint_should_enable == true && video_encode_hint_counter == expected_counter) {
+-        /* sched and cpufreq params
+-           A53: 4 cores online at 1.2GHz max, 960 min
+-           A57: 4 cores online at 384 max, 384 min
+-        */
+-        int resource_values[] = {0x150C, 0x1F03, 0x2303};
+-        perform_hint_action(new_hint_id,
+-                            resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
+-        cur_hint_id = new_hint_id;
+-        video_encode_hint_is_enabled = true;
+-        video_encode_hint_should_enable = false;
+-    }
++static int current_power_profile = PROFILE_BALANCED;
++
++static int profile_high_performance[] = {
++    SCHED_BOOST_ON, CPUS_ONLINE_MAX,
++    ALL_CPUS_PWR_CLPS_DIS, 0x0901,
++    CPU0_MIN_FREQ_TURBO_MAX,
++    CPU1_MIN_FREQ_TURBO_MAX,
++    CPU2_MIN_FREQ_TURBO_MAX,
++    CPU3_MIN_FREQ_TURBO_MAX,
++    CPU4_MIN_FREQ_TURBO_MAX,
++    CPU5_MIN_FREQ_TURBO_MAX,
++    CPU6_MIN_FREQ_TURBO_MAX,
++    CPU7_MIN_FREQ_TURBO_MAX
++};
++
++static int profile_power_save[] = {
++    CPUS_ONLINE_MPD_OVERRIDE, 0x0A03,
++    CPU0_MAX_FREQ_NONTURBO_MAX - 2,
++    CPU1_MAX_FREQ_NONTURBO_MAX - 2,
++    CPU2_MAX_FREQ_NONTURBO_MAX - 2,
++    CPU3_MAX_FREQ_NONTURBO_MAX - 2,
++    CPU4_MAX_FREQ_NONTURBO_MAX - 2,
++    CPU5_MAX_FREQ_NONTURBO_MAX - 2,
++    CPU6_MAX_FREQ_NONTURBO_MAX - 2,
++    CPU7_MAX_FREQ_NONTURBO_MAX - 2
++};
++
++static int profile_bias_power[] = {
++    0x0A03, 0x0902,
++    CPU0_MAX_FREQ_NONTURBO_MAX - 2,
++    CPU1_MAX_FREQ_NONTURBO_MAX - 2,
++    CPU2_MAX_FREQ_NONTURBO_MAX - 2,
++    CPU3_MAX_FREQ_NONTURBO_MAX - 2,
++    CPU4_MAX_FREQ_NONTURBO_MAX,
++    CPU5_MAX_FREQ_NONTURBO_MAX,
++    CPU6_MAX_FREQ_NONTURBO_MAX,
++    CPU7_MAX_FREQ_NONTURBO_MAX
++};
+ 
+-    pthread_mutex_unlock(&video_encode_lock);
+-    return NULL;
++static int profile_bias_performance[] = {
++    CPUS_ONLINE_MAX_LIMIT_MAX,
++    CPU4_MIN_FREQ_NONTURBO_MAX + 1,
++    CPU5_MIN_FREQ_NONTURBO_MAX + 1,
++    CPU6_MIN_FREQ_NONTURBO_MAX + 1,
++    CPU7_MIN_FREQ_NONTURBO_MAX + 1
++};
++
++#ifdef INTERACTION_BOOST
++int get_number_of_profiles()
++{
++    return 5;
+ }
++#endif
++
++static int set_power_profile(void *data)
++{
++    int profile = data ? *((int*)data) : 0;
++    int ret = -EINVAL;
++    const char *profile_name = NULL;
+ 
+-static int display_hint_sent;
++    if (profile == current_power_profile)
++        return 0;
+ 
+-static int process_video_encode_hint(void *metadata)
++    ALOGV("%s: Profile=%d", __func__, profile);
++
++    if (current_power_profile != PROFILE_BALANCED) {
++        undo_hint_action(DEFAULT_PROFILE_HINT_ID);
++        ALOGV("%s: Hint undone", __func__);
++        current_power_profile = PROFILE_BALANCED;
++    }
++
++    if (profile == PROFILE_POWER_SAVE) {
++        ret = perform_hint_action(DEFAULT_PROFILE_HINT_ID, profile_power_save,
++                ARRAY_SIZE(profile_power_save));
++        profile_name = "powersave";
++
++    } else if (profile == PROFILE_HIGH_PERFORMANCE) {
++        ret = perform_hint_action(DEFAULT_PROFILE_HINT_ID,
++                profile_high_performance, ARRAY_SIZE(profile_high_performance));
++        profile_name = "performance";
++
++    } else if (profile == PROFILE_BIAS_POWER) {
++        ret = perform_hint_action(DEFAULT_PROFILE_HINT_ID, profile_bias_power,
++                ARRAY_SIZE(profile_bias_power));
++        profile_name = "bias power";
++
++    } else if (profile == PROFILE_BIAS_PERFORMANCE) {
++        ret = perform_hint_action(DEFAULT_PROFILE_HINT_ID,
++                profile_bias_performance, ARRAY_SIZE(profile_bias_performance));
++        profile_name = "bias perf";
++    } else if (profile == PROFILE_BALANCED) {
++        ret = 0;
++        profile_name = "balanced";
++    }
++
++    if (ret == 0) {
++        current_power_profile = profile;
++        ALOGD("%s: Set %s mode", __func__, profile_name);
++    }
++    return ret;
++}
++
++static void process_video_encode_hint(void *metadata)
+ {
+     char governor[80];
+     struct video_encode_metadata_t video_encode_metadata;
+ 
+     if (get_scaling_governor(governor, sizeof(governor)) == -1) {
+         ALOGE("Can't obtain scaling governor.");
++        return;
++    }
+ 
+-        return HINT_NONE;
++    if (!metadata) {
++        return;
+     }
+ 
+-    /* Initialize encode metadata struct fields */
++    /* Initialize encode metadata struct fields. */
+     memset(&video_encode_metadata, 0, sizeof(struct video_encode_metadata_t));
+     video_encode_metadata.state = -1;
+     video_encode_metadata.hint_id = DEFAULT_VIDEO_ENCODE_HINT_ID;
+ 
+-    if (metadata) {
+-        if (parse_video_encode_metadata((char *)metadata, &video_encode_metadata) ==
+-            -1) {
+-            ALOGE("Error occurred while parsing metadata.");
+-            return HINT_NONE;
+-        }
+-    } else {
+-        return HINT_NONE;
++    if (parse_video_encode_metadata((char *)metadata,
++            &video_encode_metadata) == -1) {
++        ALOGE("Error occurred while parsing metadata.");
++        return;
+     }
+ 
+     if (video_encode_metadata.state == 1) {
+-        if ((strncmp(governor, INTERACTIVE_GOVERNOR, strlen(INTERACTIVE_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(INTERACTIVE_GOVERNOR))) {
+-            pthread_t video_encode_hint_thread;
+-            pthread_mutex_lock(&video_encode_lock);
+-            new_hint_id = video_encode_metadata.hint_id;
+-            if (video_encode_hint_counter < 65535) {
+-                video_encode_hint_counter++;
+-            } else {
+-                video_encode_hint_counter = 0;
+-            }
+-            // start new thread to launch hint
+-            video_encode_hint_should_enable = true;
+-            if (pthread_create(&video_encode_hint_thread, NULL, video_encode_hint_function, (void*)video_encode_hint_counter) != 0) {
+-                ALOGE("Error constructing hint thread");
+-                video_encode_hint_should_enable = false;
+-                pthread_mutex_unlock(&video_encode_lock);
+-                return HINT_NONE;
+-            }
+-            pthread_detach(video_encode_hint_thread);
+-            pthread_mutex_unlock(&video_encode_lock);
+-
+-            return HINT_HANDLED;
++        if (is_interactive_governor(governor)) {
++            /* sched and cpufreq params
++             * hispeed freq - 768 MHz
++             * target load - 90
++             * above_hispeed_delay - 40ms
++             * sched_small_tsk - 50
++             */
++            int resource_values[] = {
++                0x2C07, 0x2F5A, 0x2704, 0x4032
++            };
++            perform_hint_action(video_encode_metadata.hint_id,
++                    resource_values, ARRAY_SIZE(resource_values));
+         }
+     } else if (video_encode_metadata.state == 0) {
+-        if ((strncmp(governor, INTERACTIVE_GOVERNOR, strlen(INTERACTIVE_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(INTERACTIVE_GOVERNOR))) {
+-            pthread_mutex_lock(&video_encode_lock);
+-            video_encode_hint_should_enable = false;
+-            if (video_encode_hint_is_enabled == true) {
+-                undo_hint_action(cur_hint_id);
+-                video_encode_hint_is_enabled = false;
+-            }
+-            pthread_mutex_unlock(&video_encode_lock);
+-            return HINT_HANDLED;
++        if (is_interactive_governor(governor)) {
++            undo_hint_action(video_encode_metadata.hint_id);
+         }
+     }
+-    return HINT_NONE;
+ }
+ 
+-int power_hint_override(struct power_module *module, power_hint_t hint, void *data)
++static int resources_interaction_fling_boost[] = {
++    ALL_CPUS_PWR_CLPS_DIS,
++    SCHED_BOOST_ON,
++    SCHED_PREFER_IDLE_DIS
++};
++
++static int resources_interaction_boost[] = {
++    ALL_CPUS_PWR_CLPS_DIS,
++    SCHED_PREFER_IDLE_DIS
++};
++
++static int resources_launch[] = {
++    SCHED_BOOST_ON,
++    0x20C
++};
++
++static int process_activity_launch_hint(void *data)
+ {
+-    int ret_val = HINT_NONE;
+-    switch(hint) {
++    static int launch_handle = -1;
++    static int launch_mode = 0;
++
++    // release lock early if launch has finished
++    if (!data) {
++        if (CHECK_HANDLE(launch_handle)) {
++            release_request(launch_handle);
++            launch_handle = -1;
++        }
++        launch_mode = 0;
++        return HINT_HANDLED;
++    }
++
++    if (!launch_mode) {
++        launch_handle = interaction_with_handle(launch_handle, 5000,
++                ARRAY_SIZE(resources_launch), resources_launch);
++        if (!CHECK_HANDLE(launch_handle)) {
++            ALOGE("Failed to perform launch boost");
++            return HINT_NONE;
++        }
++        launch_mode = 1;
++    }
++    return HINT_HANDLED;
++}
++
++int power_hint_override(power_hint_t hint, void *data)
++{
++    static struct timespec s_previous_boost_timespec;
++    struct timespec cur_boost_timespec;
++    long long elapsed_time;
++    static int s_previous_duration = 0;
++    int duration;
++
++    if (hint == POWER_HINT_SET_PROFILE) {
++        if (set_power_profile(data) < 0)
++            ALOGE("Setting power profile failed. perfd not started?");
++        return HINT_HANDLED;
++    }
++
++    // Skip other hints in high/low power modes
++    if (current_power_profile == PROFILE_POWER_SAVE ||
++            current_power_profile == PROFILE_HIGH_PERFORMANCE) {
++        return HINT_HANDLED;
++    }
++
++    switch (hint) {
++        case POWER_HINT_INTERACTION:
++            duration = 500; // 500ms by default
++            if (data) {
++                int input_duration = *((int*)data);
++                if (input_duration > duration) {
++                    duration = (input_duration > 5000) ? 5000 : input_duration;
++                }
++            }
++
++            clock_gettime(CLOCK_MONOTONIC, &cur_boost_timespec);
++
++            elapsed_time = calc_timespan_us(s_previous_boost_timespec, cur_boost_timespec);
++            // don't hint if previous hint's duration covers this hint's duration
++            if ((s_previous_duration * 1000) > (elapsed_time + duration * 1000)) {
++                return HINT_HANDLED;
++            }
++            s_previous_boost_timespec = cur_boost_timespec;
++            s_previous_duration = duration;
++
++            if (duration >= 1500) {
++                interaction(duration, ARRAY_SIZE(resources_interaction_fling_boost),
++                        resources_interaction_fling_boost);
++            } else {
++                interaction(duration, ARRAY_SIZE(resources_interaction_boost),
++                        resources_interaction_boost);
++            }
++            return HINT_HANDLED;
++        case POWER_HINT_LAUNCH:
++            return process_activity_launch_hint(data);
+         case POWER_HINT_VIDEO_ENCODE:
+-            ret_val = process_video_encode_hint(data);
+-            break;
++            process_video_encode_hint(data);
++            return HINT_HANDLED;
+         default:
+             break;
+     }
+-    return ret_val;
++    return HINT_NONE;
+ }
+ 
+-int set_interactive_override(struct power_module *module, int on)
++int set_interactive_override(int on)
+ {
+     char governor[80];
+ 
+     if (get_scaling_governor(governor, sizeof(governor)) == -1) {
+         ALOGE("Can't obtain scaling governor.");
+-
+         return HINT_NONE;
+     }
+ 
+     if (!on) {
+         /* Display off */
+-        if ((strncmp(governor, INTERACTIVE_GOVERNOR, strlen(INTERACTIVE_GOVERNOR)) == 0) &&
+-            (strlen(governor) == strlen(INTERACTIVE_GOVERNOR))) {
+-            int resource_values[] = {0x41004000, 0x0}; /* 4+0 core config in display off */
+-            if (!display_hint_sent) {
+-                perform_hint_action(DISPLAY_STATE_HINT_ID,
+-                resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
+-                display_hint_sent = 1;
+-                return HINT_HANDLED;
+-            }
++        if (is_interactive_governor(governor)) {
++            // sched upmigrate = 99, sched downmigrate = 95
++            // keep the big cores around, but make them very hard to use
++            int resource_values[] = {
++                0x4E63, 0x4F5F
++            };
++            perform_hint_action(DISPLAY_STATE_HINT_ID,
++                    resource_values, ARRAY_SIZE(resource_values));
+         }
+     } else {
+         /* Display on */
+-        if ((strncmp(governor, INTERACTIVE_GOVERNOR, strlen(INTERACTIVE_GOVERNOR)) == 0) &&
+-            (strlen(governor) == strlen(INTERACTIVE_GOVERNOR))) {
++        if (is_interactive_governor(governor)) {
+             undo_hint_action(DISPLAY_STATE_HINT_ID);
+-            display_hint_sent = 0;
+-            return HINT_HANDLED;
+         }
+     }
+-    return HINT_NONE;
++    return HINT_HANDLED;
+ }
+diff --git a/power/power-common.h b/power/power-common.h
+index c00ce4e..ab2e80a 100644
+--- a/power/power-common.h
++++ b/power/power-common.h
+@@ -1,5 +1,6 @@
+ /*
+  * Copyright (c) 2013, The Linux Foundation. All rights reserved.
++ * Copyright (C) 2018 The LineageOS Project
+  *
+  * Redistribution and use in source and binary forms, with or without
+  * modification, are permitted provided that the following conditions are
+@@ -26,17 +27,38 @@
+  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
++
++#include <hardware/power.h>
++
+ #define NODE_MAX (64)
+ 
+ #define SCALING_GOVERNOR_PATH "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+-#define DCVS_CPU0_SLACK_MAX_NODE "/sys/module/msm_dcvs/cores/cpu0/slack_time_max_us"
+-#define DCVS_CPU0_SLACK_MIN_NODE "/sys/module/msm_dcvs/cores/cpu0/slack_time_min_us"
+-#define MPDECISION_SLACK_MAX_NODE "/sys/module/msm_mpdecision/slack_time_max_us"
+-#define MPDECISION_SLACK_MIN_NODE "/sys/module/msm_mpdecision/slack_time_min_us"
+-
++#define SCALING_MIN_FREQ "/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq"
+ #define ONDEMAND_GOVERNOR "ondemand"
+ #define INTERACTIVE_GOVERNOR "interactive"
+-#define MSMDCVS_GOVERNOR "msm-dcvs"
+ 
+ #define HINT_HANDLED (0)
+ #define HINT_NONE (-1)
++
++#define ARRAY_SIZE(x) (sizeof((x))/sizeof((x)[0]))
++
++enum CPU_GOV_CHECK {
++    CPU0 = 0,
++    CPU1 = 1,
++    CPU2 = 2,
++    CPU3 = 3
++};
++
++enum {
++    PROFILE_POWER_SAVE = 0,
++    PROFILE_BALANCED,
++    PROFILE_HIGH_PERFORMANCE,
++    PROFILE_BIAS_POWER,
++    PROFILE_BIAS_PERFORMANCE
++};
++
++#define CHECK_HANDLE(x) ((x)>0)
++#define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
++
++// Custom Lineage hints
++const static power_hint_t POWER_HINT_SET_PROFILE = (power_hint_t)0x00000111;
+diff --git a/power/power-feature.h b/power/power-feature.h
+new file mode 100644
+index 0000000..9f3dfb3
+--- /dev/null
++++ b/power/power-feature.h
+@@ -0,0 +1,24 @@
++/*
++ * Copyright (C) 2015 The CyanogenMod Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#ifndef _QCOM_POWER_FEATURE_H
++#define _QCOM_POWER_FEATURE_H
++
++#include <hardware/power.h>
++
++void set_device_specific_feature(feature_t feature, int state);
++
++#endif
+diff --git a/power/power-helper.c b/power/power-helper.c
+new file mode 100644
+index 0000000..7c3b147
+--- /dev/null
++++ b/power/power-helper.c
+@@ -0,0 +1,554 @@
++/*
++ * Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
++ * Copyright (C) 2017 The Android Open Source Project
++ * Copyright (C) 2017-2018 The LineageOS Project
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met:
++ * *    * Redistributions of source code must retain the above copyright
++ *       notice, this list of conditions and the following disclaimer.
++ *     * Redistributions in binary form must reproduce the above
++ *       copyright notice, this list of conditions and the following
++ *       disclaimer in the documentation and/or other materials provided
++ *       with the distribution.
++ *     * Neither the name of The Linux Foundation nor the names of its
++ *       contributors may be used to endorse or promote products derived
++ *       from this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++#define LOG_NIDEBUG 0
++
++#include <errno.h>
++#include <string.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <fcntl.h>
++#include <dlfcn.h>
++#include <inttypes.h>
++#include <stdlib.h>
++#include <unistd.h>
++
++#define LOG_TAG "QCOM PowerHAL"
++#include <log/log.h>
++#include <hardware/power.h>
++
++#include "utils.h"
++#include "metadata-defs.h"
++#include "hint-data.h"
++#include "performance.h"
++#include "power-common.h"
++#include "power-feature.h"
++#include "power-helper.h"
++
++#define USINSEC 1000000L
++#define NSINUS 1000L
++
++#ifndef RPM_STAT
++#define RPM_STAT "/d/rpm_stats"
++#endif
++
++#ifndef RPM_MASTER_STAT
++#define RPM_MASTER_STAT "/d/rpm_master_stats"
++#endif
++
++#ifndef RPM_SYSTEM_STAT
++#define RPM_SYSTEM_STAT "/d/system_stats"
++#endif
++
++/*
++   Set with TARGET_WLAN_POWER_STAT in BoardConfig.mk
++   Defaults to QCACLD3 path
++   Path for QCACLD3: /d/wlan0/power_stats
++   Path for QCACLD2 and Prima: /d/wlan_wcnss/power_stats
++ */
++
++#ifndef NO_WLAN_STATS
++#ifndef WLAN_POWER_STAT
++#define WLAN_POWER_STAT "/d/wlan0/power_stats"
++#endif
++#endif
++
++#define LINE_SIZE 128
++
++#ifdef LEGACY_STATS
++/* Use these stats on pre-nougat qualcomm kernels */
++static const char *rpm_param_names[] = {
++    "vlow_count",
++    "accumulated_vlow_time",
++    "vmin_count",
++    "accumulated_vmin_time"
++};
++
++static const char *rpm_master_param_names[] = {
++    "xo_accumulated_duration",
++    "xo_count",
++    "xo_accumulated_duration",
++    "xo_count",
++    "xo_accumulated_duration",
++    "xo_count",
++    "xo_accumulated_duration",
++    "xo_count"
++};
++
++#ifndef NO_WLAN_STATS
++static const char *wlan_param_names[] = {
++    "cumulative_sleep_time_ms",
++    "cumulative_total_on_time_ms",
++    "deep_sleep_enter_counter",
++    "last_deep_sleep_enter_tstamp_ms"
++};
++#endif
++#else
++/* Use these stats on nougat kernels and forward */
++const char *rpm_stat_params[MAX_RPM_PARAMS] = {
++    "count",
++    "actual last sleep(msec)",
++};
++
++const char *master_stat_params[MAX_RPM_PARAMS] = {
++    "Accumulated XO duration",
++    "XO Count",
++};
++
++struct stat_pair rpm_stat_map[] = {
++    { RPM_MODE_XO,   "RPM Mode:vlow", rpm_stat_params, ARRAY_SIZE(rpm_stat_params) },
++    { RPM_MODE_VMIN, "RPM Mode:vmin", rpm_stat_params, ARRAY_SIZE(rpm_stat_params) },
++    { VOTER_APSS,    "APSS",    master_stat_params, ARRAY_SIZE(master_stat_params) },
++    { VOTER_MPSS,    "MPSS",    master_stat_params, ARRAY_SIZE(master_stat_params) },
++    { VOTER_ADSP,    "ADSP",    master_stat_params, ARRAY_SIZE(master_stat_params) },
++    { VOTER_SLPI,    "SLPI",    master_stat_params, ARRAY_SIZE(master_stat_params) },
++    { VOTER_PRONTO,  "PRONTO",  master_stat_params, ARRAY_SIZE(master_stat_params) },
++    { VOTER_TZ,      "TZ",      master_stat_params, ARRAY_SIZE(master_stat_params) },
++    { VOTER_LPASS,   "LPASS",   master_stat_params, ARRAY_SIZE(master_stat_params) },
++    { VOTER_SPSS,    "SPSS",    master_stat_params, ARRAY_SIZE(master_stat_params) },
++};
++#endif
++
++#ifndef NO_WLAN_STATS
++const char *wlan_power_stat_params[] = {
++    "cumulative_sleep_time_ms",
++    "cumulative_total_on_time_ms",
++    "deep_sleep_enter_counter",
++    "last_deep_sleep_enter_tstamp_ms"
++};
++
++struct stat_pair wlan_stat_map[] = {
++    { WLAN_POWER_DEBUG_STATS, "POWER DEBUG STATS", wlan_power_stat_params, ARRAY_SIZE(wlan_power_stat_params) },
++};
++#endif
++
++static int display_hint_sent;
++
++void power_init(void)
++{
++    ALOGI("QCOM power HAL initing.");
++}
++
++static void process_video_decode_hint(void *metadata)
++{
++    char governor[80];
++    struct video_decode_metadata_t video_decode_metadata;
++
++    if (get_scaling_governor(governor, sizeof(governor)) == -1) {
++        ALOGE("Can't obtain scaling governor.");
++
++        return;
++    }
++
++    if (metadata) {
++        ALOGI("Processing video decode hint. Metadata: %s", (char *)metadata);
++    }
++
++    /* Initialize encode metadata struct fields. */
++    memset(&video_decode_metadata, 0, sizeof(struct video_decode_metadata_t));
++    video_decode_metadata.state = -1;
++    video_decode_metadata.hint_id = DEFAULT_VIDEO_DECODE_HINT_ID;
++
++    if (metadata) {
++        if (parse_video_decode_metadata((char *)metadata, &video_decode_metadata) ==
++            -1) {
++            ALOGE("Error occurred while parsing metadata.");
++            return;
++        }
++    } else {
++        return;
++    }
++
++    if (video_decode_metadata.state == 1) {
++        if (is_ondemand_governor(governor)) {
++            int resource_values[] = {THREAD_MIGRATION_SYNC_OFF};
++
++            perform_hint_action(video_decode_metadata.hint_id,
++                    resource_values, ARRAY_SIZE(resource_values));
++        } else if (is_interactive_governor(governor)) {
++            int resource_values[] = {TR_MS_30, HISPEED_LOAD_90, HS_FREQ_1026, THREAD_MIGRATION_SYNC_OFF};
++
++            perform_hint_action(video_decode_metadata.hint_id,
++                    resource_values, ARRAY_SIZE(resource_values));
++        }
++    } else if (video_decode_metadata.state == 0) {
++        if (is_ondemand_governor(governor)) {
++            undo_hint_action(video_decode_metadata.hint_id);
++        } else if (is_interactive_governor(governor)) {
++            undo_hint_action(video_decode_metadata.hint_id);
++        }
++    }
++}
++
++static void process_video_encode_hint(void *metadata)
++{
++    char governor[80];
++    struct video_encode_metadata_t video_encode_metadata;
++
++    if (get_scaling_governor(governor, sizeof(governor)) == -1) {
++        ALOGE("Can't obtain scaling governor.");
++
++        return;
++    }
++
++    /* Initialize encode metadata struct fields. */
++    memset(&video_encode_metadata, 0, sizeof(struct video_encode_metadata_t));
++    video_encode_metadata.state = -1;
++    video_encode_metadata.hint_id = DEFAULT_VIDEO_ENCODE_HINT_ID;
++
++    if (metadata) {
++        if (parse_video_encode_metadata((char *)metadata, &video_encode_metadata) ==
++            -1) {
++            ALOGE("Error occurred while parsing metadata.");
++            return;
++        }
++    } else {
++        return;
++    }
++
++    if (video_encode_metadata.state == 1) {
++        if (is_ondemand_governor(governor)) {
++            int resource_values[] = {IO_BUSY_OFF, SAMPLING_DOWN_FACTOR_1, THREAD_MIGRATION_SYNC_OFF};
++
++            perform_hint_action(video_encode_metadata.hint_id,
++                    resource_values, ARRAY_SIZE(resource_values));
++        } else if (is_interactive_governor(governor)) {
++            int resource_values[] = {TR_MS_30, HISPEED_LOAD_90, HS_FREQ_1026, THREAD_MIGRATION_SYNC_OFF,
++                INTERACTIVE_IO_BUSY_OFF};
++
++            perform_hint_action(video_encode_metadata.hint_id,
++                    resource_values, ARRAY_SIZE(resource_values));
++        }
++    } else if (video_encode_metadata.state == 0) {
++        if (is_ondemand_governor(governor)) {
++            undo_hint_action(video_encode_metadata.hint_id);
++        } else if (is_interactive_governor(governor)) {
++            undo_hint_action(video_encode_metadata.hint_id);
++        }
++    }
++}
++
++int __attribute__ ((weak)) power_hint_override(power_hint_t UNUSED(hint),
++                                               void *UNUSED(data))
++{
++    return HINT_NONE;
++}
++
++void power_hint(power_hint_t hint, void *data)
++{
++    /* Check if this hint has been overridden. */
++    if (power_hint_override(hint, data) == HINT_HANDLED) {
++        /* The power_hint has been handled. We can skip the rest. */
++        return;
++    }
++
++    switch(hint) {
++        case POWER_HINT_SUSTAINED_PERFORMANCE:
++            ALOGI("Sustained perf power hint not handled in power_hint_override");
++        break;
++        case POWER_HINT_VR_MODE:
++            ALOGI("VR mode power hint not handled in power_hint_override");
++        break;
++        case POWER_HINT_VIDEO_ENCODE:
++            process_video_encode_hint(data);
++        break;
++        case POWER_HINT_VIDEO_DECODE:
++            process_video_decode_hint(data);
++        break;
++        case POWER_HINT_SET_PROFILE:
++            ALOGI("set profile power hint not handled in power_hint_override");
++        break;
++        default:
++        break;
++    }
++}
++
++int get_number_of_profiles()
++{
++    return 0;
++}
++
++int __attribute__ ((weak)) set_interactive_override(int UNUSED(on))
++{
++    return HINT_NONE;
++}
++
++#ifdef SET_INTERACTIVE_EXT
++extern void power_set_interactive_ext(int on);
++#endif
++
++void power_set_interactive(int on)
++{
++    char governor[80];
++
++    if (!on) {
++        /* Send Display OFF hint to perf HAL */
++        perf_hint_enable(VENDOR_HINT_DISPLAY_OFF, 0);
++    } else {
++        /* Send Display ON hint to perf HAL */
++        perf_hint_enable(VENDOR_HINT_DISPLAY_ON, 0);
++    }
++
++    /**
++     * Ignore consecutive display-off hints
++     * Consecutive display-on hints are already handled
++     */
++    if (display_hint_sent && !on)
++        return;
++
++    display_hint_sent = !on;
++
++#ifdef SET_INTERACTIVE_EXT
++    power_set_interactive_ext(on);
++#endif
++
++    if (set_interactive_override(on) == HINT_HANDLED) {
++        return;
++    }
++
++    ALOGI("Got set_interactive hint");
++
++    if (get_scaling_governor(governor, sizeof(governor)) == -1) {
++        ALOGE("Can't obtain scaling governor.");
++
++        return;
++    }
++
++    if (!on) {
++        /* Display off. */
++        if (is_ondemand_governor(governor)) {
++            int resource_values[] = { MS_500, THREAD_MIGRATION_SYNC_OFF };
++
++            perform_hint_action(DISPLAY_STATE_HINT_ID,
++                    resource_values, ARRAY_SIZE(resource_values));
++        } else if (is_interactive_governor(governor)) {
++            int resource_values[] = {TR_MS_50, THREAD_MIGRATION_SYNC_OFF};
++
++            perform_hint_action(DISPLAY_STATE_HINT_ID,
++                    resource_values, ARRAY_SIZE(resource_values));
++        }
++    } else {
++        /* Display on. */
++        if (is_ondemand_governor(governor)) {
++            undo_hint_action(DISPLAY_STATE_HINT_ID);
++        } else if (is_interactive_governor(governor)) {
++            undo_hint_action(DISPLAY_STATE_HINT_ID);
++        }
++    }
++}
++
++void __attribute__((weak)) set_device_specific_feature(feature_t UNUSED(feature), int UNUSED(state))
++{
++}
++
++void set_feature(feature_t feature, int state)
++{
++    switch (feature) {
++#ifdef TAP_TO_WAKE_NODE
++        case POWER_FEATURE_DOUBLE_TAP_TO_WAKE:
++            sysfs_write(TAP_TO_WAKE_NODE, state ? "1" : "0");
++            break;
++#endif
++        default:
++            break;
++    }
++    set_device_specific_feature(feature, state);
++}
++
++#ifdef LEGACY_STATS
++static int extract_stats(uint64_t *list, char *file, const char**param_names,
++                         unsigned int num_parameters, int isHex) {
++    FILE *fp;
++    ssize_t read;
++    size_t len;
++    size_t index = 0;
++    char *line;
++    int ret;
++
++    fp = fopen(file, "r");
++    if (fp == NULL) {
++        ret = -errno;
++        ALOGE("%s: failed to open: %s Error = %s", __func__, file, strerror(errno));
++        return ret;
++    }
++
++    for (line = NULL, len = 0;
++         ((read = getline(&line, &len, fp) != -1) && (index < num_parameters));
++         free(line), line = NULL, len = 0) {
++        uint64_t value;
++        char* offset;
++
++        size_t begin = strspn(line, " \t");
++        if (strncmp(line + begin, param_names[index], strlen(param_names[index]))) {
++            continue;
++        }
++
++        offset = memchr(line, ':', len);
++        if (!offset) {
++            continue;
++        }
++
++        if (isHex) {
++            sscanf(offset, ":%" SCNx64, &value);
++        } else {
++            sscanf(offset, ":%" SCNu64, &value);
++        }
++        list[index] = value;
++        index++;
++    }
++
++    free(line);
++    fclose(fp);
++
++    return 0;
++}
++
++int extract_platform_stats(uint64_t *list) {
++    int ret;
++    //Data is located in two files
++    ret = extract_stats(list, RPM_STAT, rpm_param_names, RPM_PARAM_COUNT, false);
++    if (ret) {
++        for (size_t i=0; i < RPM_PARAM_COUNT; i++)
++            list[i] = 0;
++    }
++    ret = extract_stats(list + RPM_PARAM_COUNT, RPM_MASTER_STAT,
++                        rpm_master_param_names, PLATFORM_PARAM_COUNT - RPM_PARAM_COUNT, true);
++    if (ret) {
++        for (size_t i=RPM_PARAM_COUNT; i < PLATFORM_PARAM_COUNT; i++)
++        list[i] = 0;
++    }
++    return 0;
++}
++
++#ifndef NO_WLAN_STATS
++int extract_wlan_stats(uint64_t *list) {
++    int ret;
++    ret = extract_stats(list, WLAN_POWER_STAT, wlan_param_names, WLAN_POWER_PARAMS_COUNT, false);
++    if (ret) {
++        for (size_t i=0; i < WLAN_POWER_PARAMS_COUNT; i++)
++            list[i] = 0;
++    }
++    return 0;
++}
++#endif
++#else
++
++static int parse_stats(const char **params, size_t params_size,
++                       uint64_t *list, FILE *fp) {
++    ssize_t nread;
++    size_t len = LINE_SIZE;
++    char *line;
++    size_t params_read = 0;
++    size_t i;
++
++    line = malloc(len);
++    if (!line) {
++        ALOGE("%s: no memory to hold line", __func__);
++        return -ENOMEM;
++    }
++
++    while ((params_read < params_size) &&
++        (nread = getline(&line, &len, fp) > 0)) {
++        char *key = line + strspn(line, " \t");
++        char *value = strchr(key, ':');
++        if (!value || (value > (line + len)))
++            continue;
++        *value++ = '\0';
++
++        for (i = 0; i < params_size; i++) {
++            if (!strcmp(key, params[i])) {
++                list[i] = strtoull(value, NULL, 0);
++                params_read++;
++                break;
++            }
++        }
++    }
++    free(line);
++
++    return 0;
++}
++
++static int extract_stats(uint64_t *list, char *file,
++                         struct stat_pair *map, size_t map_size) {
++    FILE *fp;
++    ssize_t read;
++    size_t len = LINE_SIZE;
++    char *line;
++    size_t i, stats_read = 0;
++    int ret = 0;
++
++    fp = fopen(file, "re");
++    if (fp == NULL) {
++        ALOGE("%s: failed to open: %s Error = %s", __func__, file, strerror(errno));
++        return -errno;
++    }
++
++    line = malloc(len);
++    if (!line) {
++        ALOGE("%s: no memory to hold line", __func__);
++        fclose(fp);
++        return -ENOMEM;
++    }
++
++    while ((stats_read < map_size) && (read = getline(&line, &len, fp) != -1)) {
++        size_t begin = strspn(line, " \t");
++
++        for (i = 0; i < map_size; i++) {
++            if (!strncmp(line + begin, map[i].label, strlen(map[i].label))) {
++                stats_read++;
++                break;
++            }
++        }
++
++        if (i == map_size)
++            continue;
++
++        ret = parse_stats(map[i].parameters, map[i].num_parameters,
++                          &list[map[i].stat * MAX_RPM_PARAMS], fp);
++        if (ret < 0)
++            break;
++    }
++    free(line);
++    fclose(fp);
++
++    return ret;
++}
++
++int extract_platform_stats(uint64_t *list) {
++    return extract_stats(list, RPM_SYSTEM_STAT, rpm_stat_map, ARRAY_SIZE(rpm_stat_map));
++}
++
++#ifndef NO_WLAN_STATS
++int extract_wlan_stats(uint64_t *list) {
++    return extract_stats(list, WLAN_POWER_STAT, wlan_stat_map, ARRAY_SIZE(wlan_stat_map));
++}
++#endif
++#endif
+diff --git a/power/power-helper.h b/power/power-helper.h
+new file mode 100644
+index 0000000..a5a6f27
+--- /dev/null
++++ b/power/power-helper.h
+@@ -0,0 +1,144 @@
++/*
++ * Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
++ * Copyright (C) 2017-2018 The LineageOS Project
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met:
++ * *    * Redistributions of source code must retain the above copyright
++ *       notice, this list of conditions and the following disclaimer.
++ *     * Redistributions in binary form must reproduce the above
++ *       copyright notice, this list of conditions and the following
++ *       disclaimer in the documentation and/or other materials provided
++ *       with the distribution.
++ *     * Neither the name of The Linux Foundation nor the names of its
++ *       contributors may be used to endorse or promote products derived
++ *       from this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
++ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
++ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
++ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
++ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
++ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++#ifndef __POWER_HELPER_H__
++#define __POWER_HELPER_H__
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#include "hardware/power.h"
++
++#ifdef LEGACY_STATS
++enum platform_param_id {
++    VLOW_COUNT = 0,
++    ACCUMULATED_VLOW_TIME,
++    VMIN_COUNT,
++    ACCUMULATED_VMIN_TIME,
++    RPM_PARAM_COUNT,
++
++    XO_ACCUMULATED_DURATION_APSS = RPM_PARAM_COUNT,
++    XO_COUNT_APSS,
++    XO_ACCUMULATED_DURATION_MPSS,
++    XO_COUNT_MPSS,
++    XO_ACCUMULATED_DURATION_ADSP,
++    XO_COUNT_ADSP,
++    XO_ACCUMULATED_DURATION_SLPI,
++    XO_COUNT_SLPI,
++
++    //Don't add any lines after that line
++    PLATFORM_PARAM_COUNT
++};
++#endif
++
++enum stats_type {
++    //Platform Stats
++    RPM_MODE_XO = 0,
++    RPM_MODE_VMIN,
++    RPM_MODE_MAX,
++    XO_VOTERS_START = RPM_MODE_MAX,
++    VOTER_APSS = XO_VOTERS_START,
++    VOTER_MPSS,
++    VOTER_ADSP,
++    VOTER_SLPI,
++    VOTER_PRONTO,
++    VOTER_TZ,
++    VOTER_LPASS,
++    VOTER_SPSS,
++    MAX_PLATFORM_STATS,
++
++#ifndef NO_WLAN_STATS
++    //WLAN Stats
++    WLAN_POWER_DEBUG_STATS = 0,
++    MAX_WLAN_STATS,
++#endif
++};
++
++#ifndef NO_WLAN_STATS
++enum subsystem_type {
++    SUBSYSTEM_WLAN = 0,
++
++    //Don't add any lines after this line
++    SUBSYSTEM_COUNT
++};
++
++enum wlan_sleep_states {
++    WLAN_STATE_ACTIVE = 0,
++    WLAN_STATE_DEEP_SLEEP,
++
++    //Don't add any lines after this line
++    WLAN_STATES_COUNT
++};
++
++enum wlan_power_params {
++    CUMULATIVE_SLEEP_TIME_MS = 0,
++    CUMULATIVE_TOTAL_ON_TIME_MS,
++    DEEP_SLEEP_ENTER_COUNTER,
++    LAST_DEEP_SLEEP_ENTER_TSTAMP_MS,
++
++    //Don't add any lines after this line
++    WLAN_POWER_PARAMS_COUNT
++};
++#endif
++
++#define PLATFORM_SLEEP_MODES_COUNT RPM_MODE_MAX
++
++#define MAX_RPM_PARAMS 2
++#ifdef LEGACY_STATS
++#define XO_VOTERS 4
++#else
++#define XO_VOTERS (MAX_PLATFORM_STATS - XO_VOTERS_START)
++#endif
++#define VMIN_VOTERS 0
++
++struct stat_pair {
++    enum stats_type stat;
++    const char *label;
++    const char **parameters;
++    size_t num_parameters;
++};
++
++
++void power_init(void);
++void power_hint(power_hint_t hint, void *data);
++void power_set_interactive(int on);
++void set_feature(feature_t feature, int state);
++int extract_platform_stats(uint64_t *list);
++#ifndef NO_WLAN_STATS
++int extract_wlan_stats(uint64_t *list);
++#endif
++int __attribute__ ((weak)) get_number_of_profiles();
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif //__POWER_HELPER_H__
+diff --git a/power/power.c b/power/power.c
+deleted file mode 100644
+index 8442a4b..0000000
+--- a/power/power.c
++++ /dev/null
+@@ -1,770 +0,0 @@
+-/*
+- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+- *
+- * Redistribution and use in source and binary forms, with or without
+- * modification, are permitted provided that the following conditions are
+- * met:
+- * *    * Redistributions of source code must retain the above copyright
+- *       notice, this list of conditions and the following disclaimer.
+- *     * Redistributions in binary form must reproduce the above
+- *       copyright notice, this list of conditions and the following
+- *       disclaimer in the documentation and/or other materials provided
+- *       with the distribution.
+- *     * Neither the name of The Linux Foundation nor the names of its
+- *       contributors may be used to endorse or promote products derived
+- *       from this software without specific prior written permission.
+- *
+- * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+- * ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+- */
+-
+-#define LOG_NIDEBUG 0
+-
+-#include <errno.h>
+-#include <inttypes.h>
+-#include <string.h>
+-#include <sys/types.h>
+-#include <sys/stat.h>
+-#include <fcntl.h>
+-#include <dlfcn.h>
+-#include <stdlib.h>
+-
+-#define LOG_TAG "QCOMPowerHAL"
+-#include <utils/Log.h>
+-#include <hardware/hardware.h>
+-#include <hardware/power.h>
+-
+-#include "utils.h"
+-#include "metadata-defs.h"
+-#include "hint-data.h"
+-#include "performance.h"
+-#include "power-common.h"
+-
+-#define BUS_SPEED_PATH "/sys/class/devfreq/qcom,gpubw.70/min_freq"
+-#define GPU_MAX_FREQ_PATH "/sys/class/kgsl/kgsl-3d0/devfreq/max_freq"
+-#define GPU_MIN_FREQ_PATH "/sys/class/kgsl/kgsl-3d0/devfreq/min_freq"
+-#define CPU4_ONLINE_PATH "/sys/devices/system/cpu/cpu4/online"
+-#define CPU5_ONLINE_PATH "/sys/devices/system/cpu/cpu5/online"
+-#define CPU6_ONLINE_PATH "/sys/devices/system/cpu/cpu6/online"
+-#define CPU7_ONLINE_PATH "/sys/devices/system/cpu/cpu7/online"
+-
+-#define PLATFORM_SLEEP_MODES 2
+-#define XO_VOTERS 3
+-#define VMIN_VOTERS 0
+-
+-#define RPM_PARAMETERS 4
+-#define NUM_PARAMETERS 10
+-
+-#ifndef RPM_STAT
+-#define RPM_STAT "/d/rpm_stats"
+-#endif
+-
+-#ifndef RPM_MASTER_STAT
+-#define RPM_MASTER_STAT "/d/rpm_master_stats"
+-#endif
+-
+-/* RPM runs at 19.2Mhz. Divide by 19200 for msec */
+-#define RPM_CLK 19200
+-#define USINSEC 1000000L
+-#define NSINUS 1000L
+-
+-const char *parameter_names[] = {
+-    "vlow_count",
+-    "accumulated_vlow_time",
+-    "vmin_count",
+-    "accumulated_vmin_time",
+-    "xo_accumulated_duration",
+-    "xo_count",
+-    "xo_accumulated_duration",
+-    "xo_count",
+-    "xo_accumulated_duration",
+-    "xo_count"};
+-
+-static int saved_dcvs_cpu0_slack_max = -1;
+-static int saved_dcvs_cpu0_slack_min = -1;
+-static int saved_mpdecision_slack_max = -1;
+-static int saved_mpdecision_slack_min = -1;
+-static int saved_interactive_mode = -1;
+-static int slack_node_rw_failed = 0;
+-static int display_hint_sent;
+-static int sustained_performance_mode = 0;
+-int display_boost;
+-static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+-
+-static void power_init(struct power_module *module)
+-{
+-    ALOGI("QCOM power HAL initing.");
+-
+-    int fd;
+-    char buf[10] = {0};
+-
+-    fd = open("/sys/devices/soc0/soc_id", O_RDONLY);
+-    if (fd >= 0) {
+-        if (read(fd, buf, sizeof(buf) - 1) == -1) {
+-            ALOGW("Unable to read soc_id");
+-        } else {
+-            int soc_id = atoi(buf);
+-            if (soc_id == 194 || (soc_id >= 208 && soc_id <= 218) || soc_id == 178) {
+-                display_boost = 1;
+-            }
+-        }
+-        close(fd);
+-    }
+-}
+-
+-static void process_video_decode_hint(void *metadata)
+-{
+-    char governor[80];
+-    struct video_decode_metadata_t video_decode_metadata;
+-
+-    if (get_scaling_governor(governor, sizeof(governor)) == -1) {
+-        ALOGE("Can't obtain scaling governor.");
+-
+-        return;
+-    }
+-
+-    if (metadata) {
+-        ALOGI("Processing video decode hint. Metadata: %s", (char *)metadata);
+-    }
+-
+-    /* Initialize encode metadata struct fields. */
+-    memset(&video_decode_metadata, 0, sizeof(struct video_decode_metadata_t));
+-    video_decode_metadata.state = -1;
+-    video_decode_metadata.hint_id = DEFAULT_VIDEO_DECODE_HINT_ID;
+-
+-    if (metadata) {
+-        if (parse_video_decode_metadata((char *)metadata, &video_decode_metadata) ==
+-            -1) {
+-            ALOGE("Error occurred while parsing metadata.");
+-            return;
+-        }
+-    } else {
+-        return;
+-    }
+-
+-    if (video_decode_metadata.state == 1) {
+-        if ((strncmp(governor, ONDEMAND_GOVERNOR, strlen(ONDEMAND_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(ONDEMAND_GOVERNOR))) {
+-            int resource_values[] = {THREAD_MIGRATION_SYNC_OFF};
+-
+-            perform_hint_action(video_decode_metadata.hint_id,
+-                    resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
+-        } else if ((strncmp(governor, INTERACTIVE_GOVERNOR, strlen(INTERACTIVE_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(INTERACTIVE_GOVERNOR))) {
+-            int resource_values[] = {TR_MS_30, HISPEED_LOAD_90, HS_FREQ_1026, THREAD_MIGRATION_SYNC_OFF};
+-
+-            perform_hint_action(video_decode_metadata.hint_id,
+-                    resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
+-        }
+-    } else if (video_decode_metadata.state == 0) {
+-        if ((strncmp(governor, ONDEMAND_GOVERNOR, strlen(ONDEMAND_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(ONDEMAND_GOVERNOR))) {
+-        } else if ((strncmp(governor, INTERACTIVE_GOVERNOR, strlen(INTERACTIVE_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(INTERACTIVE_GOVERNOR))) {
+-            undo_hint_action(video_decode_metadata.hint_id);
+-        }
+-    }
+-}
+-
+-static void process_video_encode_hint(void *metadata)
+-{
+-    char governor[80];
+-    struct video_encode_metadata_t video_encode_metadata;
+-
+-    if (get_scaling_governor(governor, sizeof(governor)) == -1) {
+-        ALOGE("Can't obtain scaling governor.");
+-
+-        return;
+-    }
+-
+-    /* Initialize encode metadata struct fields. */
+-    memset(&video_encode_metadata, 0, sizeof(struct video_encode_metadata_t));
+-    video_encode_metadata.state = -1;
+-    video_encode_metadata.hint_id = DEFAULT_VIDEO_ENCODE_HINT_ID;
+-
+-    if (metadata) {
+-        if (parse_video_encode_metadata((char *)metadata, &video_encode_metadata) ==
+-            -1) {
+-            ALOGE("Error occurred while parsing metadata.");
+-            return;
+-        }
+-    } else {
+-        return;
+-    }
+-
+-    if (video_encode_metadata.state == 1) {
+-        if ((strncmp(governor, ONDEMAND_GOVERNOR, strlen(ONDEMAND_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(ONDEMAND_GOVERNOR))) {
+-            int resource_values[] = {IO_BUSY_OFF, SAMPLING_DOWN_FACTOR_1, THREAD_MIGRATION_SYNC_OFF};
+-
+-            perform_hint_action(video_encode_metadata.hint_id,
+-                resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
+-        } else if ((strncmp(governor, INTERACTIVE_GOVERNOR, strlen(INTERACTIVE_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(INTERACTIVE_GOVERNOR))) {
+-            int resource_values[] = {TR_MS_30, HISPEED_LOAD_90, HS_FREQ_1026, THREAD_MIGRATION_SYNC_OFF,
+-                INTERACTIVE_IO_BUSY_OFF};
+-
+-            perform_hint_action(video_encode_metadata.hint_id,
+-                    resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
+-        }
+-    } else if (video_encode_metadata.state == 0) {
+-        if ((strncmp(governor, ONDEMAND_GOVERNOR, strlen(ONDEMAND_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(ONDEMAND_GOVERNOR))) {
+-            undo_hint_action(video_encode_metadata.hint_id);
+-        } else if ((strncmp(governor, INTERACTIVE_GOVERNOR, strlen(INTERACTIVE_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(INTERACTIVE_GOVERNOR))) {
+-            undo_hint_action(video_encode_metadata.hint_id);
+-        }
+-    }
+-}
+-
+-int __attribute__ ((weak)) power_hint_override(struct power_module *module, power_hint_t hint,
+-        void *data)
+-{
+-    return HINT_NONE;
+-}
+-
+-/* Declare function before use */
+-int interaction(int duration, int num_args, int opt_list[]);
+-int interaction_with_handle(int lock_handle, int duration, int num_args, int opt_list[]);
+-
+-static long long calc_timespan_us(struct timespec start, struct timespec end) {
+-    long long diff_in_us = 0;
+-    diff_in_us += (end.tv_sec - start.tv_sec) * USINSEC;
+-    diff_in_us += (end.tv_nsec - start.tv_nsec) / NSINUS;
+-    return diff_in_us;
+-}
+-
+-static void power_hint(struct power_module *module, power_hint_t hint,
+-        void *data)
+-{
+-    static int handle_hotplug = 0;
+-    int resources_hotplug[] = {0x3DFF};
+-    /* Check if this hint has been overridden. */
+-    if (power_hint_override(module, hint, data) == HINT_HANDLED) {
+-        /* The power_hint has been handled. We can skip the rest. */
+-        return;
+-    }
+-
+-    switch(hint) {
+-        case POWER_HINT_VSYNC:
+-        break;
+-        case POWER_HINT_INTERACTION:
+-        {
+-            int duration_hint = 0;
+-            static struct timespec previous_boost_timespec = {0, 0};
+-
+-            // If we are in sustained performance mode, touch boost
+-            // should be ignored.
+-            pthread_mutex_lock(&lock);
+-            if (sustained_performance_mode) {
+-                pthread_mutex_unlock(&lock);
+-                return;
+-            }
+-            pthread_mutex_unlock(&lock);
+-
+-            // little core freq bump for 1.5s
+-            int resources[] = {0x20C};
+-            int duration = 1500;
+-            static int handle_little = 0;
+-
+-            // big core freq bump for 500ms
+-            int resources_big[] = {0x2312, 0x1F08};
+-            int duration_big = 500;
+-            static int handle_big = 0;
+-
+-            // sched_downmigrate lowered to 10 for 1s at most
+-            // should be half of upmigrate
+-            int resources_downmigrate[] = {0x4F00};
+-            int duration_downmigrate = 1000;
+-            static int handle_downmigrate = 0;
+-
+-            // sched_upmigrate lowered to at most 20 for 500ms
+-            // set threshold based on elapsed time since last boost
+-            int resources_upmigrate[] = {0x4E00};
+-            int duration_upmigrate = 500;
+-            static int handle_upmigrate = 0;
+-
+-            // set duration hint
+-            if (data) {
+-                duration_hint = *((int*)data);
+-            }
+-
+-            struct timespec cur_boost_timespec;
+-            clock_gettime(CLOCK_MONOTONIC, &cur_boost_timespec);
+-            pthread_mutex_lock(&lock);
+-            long long elapsed_time = calc_timespan_us(previous_boost_timespec, cur_boost_timespec);
+-            if (elapsed_time > 750000)
+-                elapsed_time = 750000;
+-            // don't hint if it's been less than 250ms since last boost
+-            // also detect if we're doing anything resembling a fling
+-            // support additional boosting in case of flings
+-            else if (elapsed_time < 250000 && duration_hint <= 750) {
+-                pthread_mutex_unlock(&lock);
+-                return;
+-            }
+-
+-            previous_boost_timespec = cur_boost_timespec;
+-            pthread_mutex_unlock(&lock);
+-
+-            // 95: default upmigrate for phone
+-            // 20: upmigrate for sporadic touch
+-            // 750ms: a completely arbitrary threshold for last touch
+-            int upmigrate_value = 95 - (int)(75. * ((elapsed_time*elapsed_time) / (750000.*750000.)));
+-
+-            // keep sched_upmigrate high when flinging
+-            if (duration_hint >= 750)
+-                upmigrate_value = 20;
+-
+-            resources_upmigrate[0] = resources_upmigrate[0] | upmigrate_value;
+-            resources_downmigrate[0] = resources_downmigrate[0] | (upmigrate_value / 2);
+-
+-            // modify downmigrate duration based on interaction data hint
+-            // 1000 <= duration_downmigrate <= 5000
+-            // extend little core freq bump past downmigrate to soften downmigrates
+-            if (duration_hint > 1000) {
+-                if (duration_hint < 5000) {
+-                    duration_downmigrate = duration_hint;
+-                    duration = duration_hint + 750;
+-                } else {
+-                    duration_downmigrate = 5000;
+-                    duration = 5750;
+-                }
+-            }
+-
+-            handle_little = interaction_with_handle(handle_little,duration, sizeof(resources)/sizeof(resources[0]), resources);
+-            handle_big = interaction_with_handle(handle_big, duration_big, sizeof(resources_big)/sizeof(resources_big[0]), resources_big);
+-            handle_downmigrate = interaction_with_handle(handle_downmigrate, duration_downmigrate, sizeof(resources_downmigrate)/sizeof(resources_downmigrate[0]), resources_downmigrate);
+-            handle_upmigrate = interaction_with_handle(handle_upmigrate, duration_upmigrate, sizeof(resources_upmigrate)/sizeof(resources_upmigrate[0]), resources_upmigrate);
+-        }
+-        break;
+-        case POWER_HINT_VIDEO_ENCODE:
+-            process_video_encode_hint(data);
+-        break;
+-        case POWER_HINT_VIDEO_DECODE:
+-            process_video_decode_hint(data);
+-        break;
+-
+-        /* While the system is Sustained Performance Mode:
+-         * CPUfreq for the little cores are capped to 864MHz
+-         * Big cores are hotplugged out
+-         * GPU frequency is capped to 305 MHz
+-         */
+-        case POWER_HINT_SUSTAINED_PERFORMANCE:
+-        {
+-            static int handle = 0;
+-
+-            pthread_mutex_lock(&lock);
+-            if (data && sustained_performance_mode == 0) {
+-                int resources[] = {0x1509};
+-                int duration = 0;
+-                handle = interaction_with_handle(handle, duration,
+-                                        sizeof(resources)/sizeof(resources[0]),
+-                                        resources);
+-                sysfs_write(GPU_MAX_FREQ_PATH, "305000000");
+-                handle_hotplug = interaction_with_handle(handle_hotplug, duration,
+-                                    sizeof(resources_hotplug)/sizeof(resources_hotplug[0]),
+-                                    resources_hotplug);
+-                sustained_performance_mode = 1;
+-            } else if (sustained_performance_mode == 1){
+-                release_request(handle);
+-                sysfs_write(GPU_MAX_FREQ_PATH, "600000000");
+-                release_request(handle_hotplug);
+-                sustained_performance_mode = 0;
+-           }
+-           pthread_mutex_unlock(&lock);
+-        }
+-        break;
+-    }
+-}
+-
+-int __attribute__ ((weak)) set_interactive_override(struct power_module *module, int on)
+-{
+-    return HINT_NONE;
+-}
+-
+-void set_interactive(struct power_module *module, int on)
+-{
+-    char governor[80];
+-    char tmp_str[NODE_MAX];
+-    struct video_encode_metadata_t video_encode_metadata;
+-    int rc;
+-
+-    if (set_interactive_override(module, on) == HINT_HANDLED) {
+-        return;
+-    }
+-
+-    ALOGI("Got set_interactive hint");
+-
+-    if (get_scaling_governor(governor, sizeof(governor)) == -1) {
+-        ALOGE("Can't obtain scaling governor.");
+-
+-        return;
+-    }
+-
+-    if (!on) {
+-        /* Display off. */
+-        if ((strncmp(governor, ONDEMAND_GOVERNOR, strlen(ONDEMAND_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(ONDEMAND_GOVERNOR))) {
+-            int resource_values[] = {DISPLAY_OFF, MS_500, THREAD_MIGRATION_SYNC_OFF};
+-
+-            if (!display_hint_sent) {
+-                perform_hint_action(DISPLAY_STATE_HINT_ID,
+-                        resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
+-                display_hint_sent = 1;
+-            }
+-        } else if ((strncmp(governor, INTERACTIVE_GOVERNOR, strlen(INTERACTIVE_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(INTERACTIVE_GOVERNOR))) {
+-            int resource_values[] = {TR_MS_50, THREAD_MIGRATION_SYNC_OFF};
+-
+-            if (!display_hint_sent) {
+-                perform_hint_action(DISPLAY_STATE_HINT_ID,
+-                        resource_values, sizeof(resource_values)/sizeof(resource_values[0]));
+-                display_hint_sent = 1;
+-            }
+-        } else if ((strncmp(governor, MSMDCVS_GOVERNOR, strlen(MSMDCVS_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(MSMDCVS_GOVERNOR))) {
+-            if (saved_interactive_mode == 1){
+-                /* Display turned off. */
+-                if (sysfs_read(DCVS_CPU0_SLACK_MAX_NODE, tmp_str, NODE_MAX - 1)) {
+-                    if (!slack_node_rw_failed) {
+-                        ALOGE("Failed to read from %s", DCVS_CPU0_SLACK_MAX_NODE);
+-                    }
+-
+-                    rc = 1;
+-                } else {
+-                    saved_dcvs_cpu0_slack_max = atoi(tmp_str);
+-                }
+-
+-                if (sysfs_read(DCVS_CPU0_SLACK_MIN_NODE, tmp_str, NODE_MAX - 1)) {
+-                    if (!slack_node_rw_failed) {
+-                        ALOGE("Failed to read from %s", DCVS_CPU0_SLACK_MIN_NODE);
+-                    }
+-
+-                    rc = 1;
+-                } else {
+-                    saved_dcvs_cpu0_slack_min = atoi(tmp_str);
+-                }
+-
+-                if (sysfs_read(MPDECISION_SLACK_MAX_NODE, tmp_str, NODE_MAX - 1)) {
+-                    if (!slack_node_rw_failed) {
+-                        ALOGE("Failed to read from %s", MPDECISION_SLACK_MAX_NODE);
+-                    }
+-
+-                    rc = 1;
+-                } else {
+-                    saved_mpdecision_slack_max = atoi(tmp_str);
+-                }
+-
+-                if (sysfs_read(MPDECISION_SLACK_MIN_NODE, tmp_str, NODE_MAX - 1)) {
+-                    if(!slack_node_rw_failed) {
+-                        ALOGE("Failed to read from %s", MPDECISION_SLACK_MIN_NODE);
+-                    }
+-
+-                    rc = 1;
+-                } else {
+-                    saved_mpdecision_slack_min = atoi(tmp_str);
+-                }
+-
+-                /* Write new values. */
+-                if (saved_dcvs_cpu0_slack_max != -1) {
+-                    snprintf(tmp_str, NODE_MAX, "%d", 10 * saved_dcvs_cpu0_slack_max);
+-
+-                    if (sysfs_write(DCVS_CPU0_SLACK_MAX_NODE, tmp_str) != 0) {
+-                        if (!slack_node_rw_failed) {
+-                            ALOGE("Failed to write to %s", DCVS_CPU0_SLACK_MAX_NODE);
+-                        }
+-
+-                        rc = 1;
+-                    }
+-                }
+-
+-                if (saved_dcvs_cpu0_slack_min != -1) {
+-                    snprintf(tmp_str, NODE_MAX, "%d", 10 * saved_dcvs_cpu0_slack_min);
+-
+-                    if (sysfs_write(DCVS_CPU0_SLACK_MIN_NODE, tmp_str) != 0) {
+-                        if(!slack_node_rw_failed) {
+-                            ALOGE("Failed to write to %s", DCVS_CPU0_SLACK_MIN_NODE);
+-                        }
+-
+-                        rc = 1;
+-                    }
+-                }
+-
+-                if (saved_mpdecision_slack_max != -1) {
+-                    snprintf(tmp_str, NODE_MAX, "%d", 10 * saved_mpdecision_slack_max);
+-
+-                    if (sysfs_write(MPDECISION_SLACK_MAX_NODE, tmp_str) != 0) {
+-                        if(!slack_node_rw_failed) {
+-                            ALOGE("Failed to write to %s", MPDECISION_SLACK_MAX_NODE);
+-                        }
+-
+-                        rc = 1;
+-                    }
+-                }
+-
+-                if (saved_mpdecision_slack_min != -1) {
+-                    snprintf(tmp_str, NODE_MAX, "%d", 10 * saved_mpdecision_slack_min);
+-
+-                    if (sysfs_write(MPDECISION_SLACK_MIN_NODE, tmp_str) != 0) {
+-                        if(!slack_node_rw_failed) {
+-                            ALOGE("Failed to write to %s", MPDECISION_SLACK_MIN_NODE);
+-                        }
+-
+-                        rc = 1;
+-                    }
+-                }
+-            }
+-
+-            slack_node_rw_failed = rc;
+-        }
+-    } else {
+-        /* Display on. */
+-        if ((strncmp(governor, ONDEMAND_GOVERNOR, strlen(ONDEMAND_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(ONDEMAND_GOVERNOR))) {
+-            undo_hint_action(DISPLAY_STATE_HINT_ID);
+-            display_hint_sent = 0;
+-        } else if ((strncmp(governor, INTERACTIVE_GOVERNOR, strlen(INTERACTIVE_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(INTERACTIVE_GOVERNOR))) {
+-            undo_hint_action(DISPLAY_STATE_HINT_ID);
+-            display_hint_sent = 0;
+-        } else if ((strncmp(governor, MSMDCVS_GOVERNOR, strlen(MSMDCVS_GOVERNOR)) == 0) &&
+-                (strlen(governor) == strlen(MSMDCVS_GOVERNOR))) {
+-            if (saved_interactive_mode == -1 || saved_interactive_mode == 0) {
+-                /* Display turned on. Restore if possible. */
+-                if (saved_dcvs_cpu0_slack_max != -1) {
+-                    snprintf(tmp_str, NODE_MAX, "%d", saved_dcvs_cpu0_slack_max);
+-
+-                    if (sysfs_write(DCVS_CPU0_SLACK_MAX_NODE, tmp_str) != 0) {
+-                        if (!slack_node_rw_failed) {
+-                            ALOGE("Failed to write to %s", DCVS_CPU0_SLACK_MAX_NODE);
+-                        }
+-
+-                        rc = 1;
+-                    }
+-                }
+-
+-                if (saved_dcvs_cpu0_slack_min != -1) {
+-                    snprintf(tmp_str, NODE_MAX, "%d", saved_dcvs_cpu0_slack_min);
+-
+-                    if (sysfs_write(DCVS_CPU0_SLACK_MIN_NODE, tmp_str) != 0) {
+-                        if (!slack_node_rw_failed) {
+-                            ALOGE("Failed to write to %s", DCVS_CPU0_SLACK_MIN_NODE);
+-                        }
+-
+-                        rc = 1;
+-                    }
+-                }
+-
+-                if (saved_mpdecision_slack_max != -1) {
+-                    snprintf(tmp_str, NODE_MAX, "%d", saved_mpdecision_slack_max);
+-
+-                    if (sysfs_write(MPDECISION_SLACK_MAX_NODE, tmp_str) != 0) {
+-                        if (!slack_node_rw_failed) {
+-                            ALOGE("Failed to write to %s", MPDECISION_SLACK_MAX_NODE);
+-                        }
+-
+-                        rc = 1;
+-                    }
+-                }
+-
+-                if (saved_mpdecision_slack_min != -1) {
+-                    snprintf(tmp_str, NODE_MAX, "%d", saved_mpdecision_slack_min);
+-
+-                    if (sysfs_write(MPDECISION_SLACK_MIN_NODE, tmp_str) != 0) {
+-                        if (!slack_node_rw_failed) {
+-                            ALOGE("Failed to write to %s", MPDECISION_SLACK_MIN_NODE);
+-                        }
+-
+-                        rc = 1;
+-                    }
+-                }
+-            }
+-
+-            slack_node_rw_failed = rc;
+-        }
+-    }
+-
+-    saved_interactive_mode = !!on;
+-}
+-
+-static ssize_t get_number_of_platform_modes(struct power_module *module) {
+-   return PLATFORM_SLEEP_MODES;
+-}
+-
+-static int get_voter_list(struct power_module *module, size_t *voter) {
+-   voter[0] = XO_VOTERS;
+-   voter[1] = VMIN_VOTERS;
+-
+-   return 0;
+-}
+-
+-static int extract_stats(uint64_t *list, char *file,
+-    unsigned int num_parameters, unsigned int index) {
+-    FILE *fp;
+-    ssize_t read;
+-    size_t len;
+-    char *line;
+-    int ret;
+-
+-    fp = fopen(file, "r");
+-    if (fp == NULL) {
+-        ret = -errno;
+-        ALOGE("%s: failed to open: %s", __func__, strerror(errno));
+-        return ret;
+-    }
+-
+-    for (line = NULL, len = 0;
+-         ((read = getline(&line, &len, fp) != -1) && (index < num_parameters));
+-         free(line), line = NULL, len = 0) {
+-        uint64_t value;
+-        char* offset;
+-
+-        size_t begin = strspn(line, " \t");
+-        if (strncmp(line + begin, parameter_names[index], strlen(parameter_names[index]))) {
+-            continue;
+-        }
+-
+-        offset = memchr(line, ':', len);
+-        if (!offset) {
+-            continue;
+-        }
+-
+-        if (!strcmp(file, RPM_MASTER_STAT)) {
+-            /* RPM_MASTER_STAT is reported in hex */
+-            sscanf(offset, ":%" SCNx64, &value);
+-            /* Duration is reported in rpm SLEEP TICKS */
+-            if (!strcmp(parameter_names[index], "xo_accumulated_duration")) {
+-                value /= RPM_CLK;
+-            }
+-        } else {
+-            /* RPM_STAT is reported in decimal */
+-            sscanf(offset, ":%" SCNu64, &value);
+-        }
+-        list[index] = value;
+-        index++;
+-    }
+-    free(line);
+-
+-    fclose(fp);
+-    return 0;
+-}
+-
+-static int get_platform_low_power_stats(struct power_module *module,
+-    power_state_platform_sleep_state_t *list) {
+-    uint64_t stats[sizeof(parameter_names)] = {0};
+-    int ret;
+-
+-    if (!list) {
+-        return -EINVAL;
+-    }
+-
+-    ret = extract_stats(stats, RPM_STAT, RPM_PARAMETERS, 0);
+-
+-    if (ret) {
+-        return ret;
+-    }
+-
+-    ret = extract_stats(stats, RPM_MASTER_STAT, NUM_PARAMETERS, 4);
+-
+-    if (ret) {
+-        return ret;
+-    }
+-
+-    /* Update statistics for XO_shutdown */
+-    strcpy(list[0].name, "XO_shutdown");
+-    list[0].total_transitions = stats[0];
+-    list[0].residency_in_msec_since_boot = stats[1];
+-    list[0].supported_only_in_suspend = false;
+-    list[0].number_of_voters = XO_VOTERS;
+-
+-    /* Update statistics for APSS voter */
+-    strcpy(list[0].voters[0].name, "APSS");
+-    list[0].voters[0].total_time_in_msec_voted_for_since_boot = stats[4];
+-    list[0].voters[0].total_number_of_times_voted_since_boot = stats[5];
+-
+-    /* Update statistics for MPSS voter */
+-    strcpy(list[0].voters[1].name, "MPSS");
+-    list[0].voters[1].total_time_in_msec_voted_for_since_boot = stats[6];
+-    list[0].voters[1].total_number_of_times_voted_since_boot = stats[7];
+-
+-    /* Update statistics for LPASS voter */
+-    strcpy(list[0].voters[2].name, "LPASS");
+-    list[0].voters[2].total_time_in_msec_voted_for_since_boot = stats[8];
+-    list[0].voters[2].total_number_of_times_voted_since_boot = stats[9];
+-
+-    /* Update statistics for VMIN state */
+-    strcpy(list[1].name, "VMIN");
+-    list[1].total_transitions = stats[2];
+-    list[1].residency_in_msec_since_boot = stats[3];
+-    list[1].supported_only_in_suspend = false;
+-    list[1].number_of_voters = VMIN_VOTERS;
+-
+-    return 0;
+-}
+-
+-static int power_open(const hw_module_t* module, const char* name,
+-                    hw_device_t** device)
+-{
+-    ALOGD("%s: enter; name=%s", __FUNCTION__, name);
+-    int retval = 0; /* 0 is ok; -1 is error */
+-
+-    if (strcmp(name, POWER_HARDWARE_MODULE_ID) == 0) {
+-        power_module_t *dev = (power_module_t *)calloc(1,
+-                sizeof(power_module_t));
+-
+-        if (dev) {
+-            /* Common hw_device_t fields */
+-            dev->common.tag = HARDWARE_DEVICE_TAG;
+-            dev->common.module_api_version = POWER_MODULE_API_VERSION_0_5;
+-            dev->common.hal_api_version = HARDWARE_HAL_API_VERSION;
+-
+-            dev->init = power_init;
+-            dev->powerHint = power_hint;
+-            dev->setInteractive = set_interactive;
+-            dev->get_number_of_platform_modes = get_number_of_platform_modes;
+-            dev->get_platform_low_power_stats = get_platform_low_power_stats;
+-            dev->get_voter_list = get_voter_list;
+-
+-            *device = (hw_device_t*)dev;
+-        } else
+-            retval = -ENOMEM;
+-    } else {
+-        retval = -EINVAL;
+-    }
+-
+-    ALOGD("%s: exit %d", __FUNCTION__, retval);
+-    return retval;
+-}
+-
+-static struct hw_module_methods_t power_module_methods = {
+-    .open = power_open,
+-};
+-
+-struct power_module HAL_MODULE_INFO_SYM = {
+-    .common = {
+-        .tag = HARDWARE_MODULE_TAG,
+-        .module_api_version = POWER_MODULE_API_VERSION_0_5,
+-        .hal_api_version = HARDWARE_HAL_API_VERSION,
+-        .id = POWER_HARDWARE_MODULE_ID,
+-        .name = "QCOM Power HAL",
+-        .author = "Qualcomm",
+-        .methods = &power_module_methods,
+-    },
+-
+-    .init = power_init,
+-    .powerHint = power_hint,
+-    .setInteractive = set_interactive,
+-    .get_number_of_platform_modes = get_number_of_platform_modes,
+-    .get_platform_low_power_stats = get_platform_low_power_stats,
+-    .get_voter_list = get_voter_list
+-};
+diff --git a/power/service.cpp b/power/service.cpp
+new file mode 100644
+index 0000000..976c369
+--- /dev/null
++++ b/power/service.cpp
+@@ -0,0 +1,75 @@
++/*
++ * Copyright (C) 2017 The Android Open Source Project
++ * Copyright (C) 2017-2018 The LineageOS Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#define LOG_TAG "android.hardware.power@1.1-service.angler"
++
++// #define LOG_NDEBUG 0
++
++#include <android/log.h>
++#include <hidl/HidlTransportSupport.h>
++#include <hardware/power.h>
++#ifdef ARCH_ARM_32
++#include <hwbinder/ProcessState.h>
++#endif
++#include "Power.h"
++
++using android::sp;
++using android::status_t;
++using android::OK;
++
++// libhwbinder:
++using android::hardware::configureRpcThreadpool;
++using android::hardware::joinRpcThreadpool;
++
++// Generated HIDL files
++using android::hardware::power::V1_1::implementation::Power;
++
++int main() {
++#ifdef ARCH_ARM_32
++    android::hardware::ProcessState::initWithMmapSize((size_t)16384);
++#endif
++
++    status_t status;
++    android::sp<Power> service = nullptr;
++
++    ALOGI("Power HAL Service 1.1 for QCOM is starting.");
++
++    service = new Power();
++    if (service == nullptr) {
++        ALOGE("Can not create an instance of Power HAL Iface, exiting.");
++
++        goto shutdown;
++    }
++
++    configureRpcThreadpool(1, true /*callerWillJoin*/);
++
++    status = service->registerAsSystemService();
++    if (status != OK) {
++        ALOGE("Could not register service for Power HAL Iface (%d).", status);
++        goto shutdown;
++    }
++
++    ALOGI("Power Service is ready");
++    joinRpcThreadpool();
++    //Should not pass this line
++
++shutdown:
++    // In normal operation, we don't expect the thread pool to exit
++
++    ALOGE("Power Service is shutting down");
++    return 1;
++}
+diff --git a/power/utils.c b/power/utils.c
+index 510dbf8..6fa40af 100644
+--- a/power/utils.c
++++ b/power/utils.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2012-2013,2015-2017, The Linux Foundation. All rights reserved.
+  *
+  * Redistribution and use in source and binary forms, with or without
+  * modification, are permitted provided that the following conditions are
+@@ -33,34 +33,59 @@
+ #include <errno.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <unistd.h>
+ 
+ #include "utils.h"
+ #include "list.h"
+ #include "hint-data.h"
+ #include "power-common.h"
++#include "power-helper.h"
+ 
+-#define LOG_TAG "QCOMPowerHAL"
+-#include <utils/Log.h>
++#define LOG_TAG "QCOM PowerHAL"
++#include <log/log.h>
+ 
+-#define INTERACTION_BOOST
++#define USINSEC 1000000L
++#define NSINUS 1000L
+ 
++#define SOC_ID_0 "/sys/devices/soc0/soc_id"
++#define SOC_ID_1 "/sys/devices/system/soc/soc0/id"
++
++const char *scaling_gov_path[4] = {
++    "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor",
++    "/sys/devices/system/cpu/cpu1/cpufreq/scaling_governor",
++    "/sys/devices/system/cpu/cpu2/cpufreq/scaling_governor",
++    "/sys/devices/system/cpu/cpu3/cpufreq/scaling_governor"
++};
++
++#define PERF_HAL_PATH "libqti-perfd-client.so"
+ static void *qcopt_handle;
+ static int (*perf_lock_acq)(unsigned long handle, int duration,
+     int list[], int numArgs);
+ static int (*perf_lock_rel)(unsigned long handle);
++static int (*perf_hint)(int, char *, int, int);
+ static struct list_node active_hint_list_head;
+ 
+ static void *get_qcopt_handle()
+ {
+-    char qcopt_lib_path[PATH_MAX] = "libqti-perfd-client.so";
++    char qcopt_lib_path[PATH_MAX] = {0};
+     void *handle = NULL;
+ 
+     dlerror();
+ 
+-    handle = dlopen(qcopt_lib_path, RTLD_NOW);
+-	if (!handle) {
+-	    ALOGE("Unable to open %s: %s\n", qcopt_lib_path,
+-	    dlerror());
++    if (property_get("ro.vendor.extension_library", qcopt_lib_path,
++                NULL)) {
++        handle = dlopen(qcopt_lib_path, RTLD_NOW);
++        if (!handle) {
++            ALOGE("Unable to open %s: %s\n", qcopt_lib_path,
++                    dlerror());
++        }
++    }
++    if (!handle) {
++        handle = dlopen(PERF_HAL_PATH, RTLD_NOW);
++        if (!handle) {
++            ALOGE("Unable to open %s: %s\n", PERF_HAL_PATH,
++                    dlerror());
++        }
+     }
+ 
+     return handle;
+@@ -88,6 +113,12 @@ static void __attribute__ ((constructor)) initialize(void)
+         if (!perf_lock_rel) {
+             ALOGE("Unable to get perf_lock_rel function handle.\n");
+         }
++
++        perf_hint = dlsym(qcopt_handle, "perf_hint");
++
++        if (!perf_hint) {
++            ALOGE("Unable to get perf_hint function handle.\n");
++        }
+     }
+ }
+ 
+@@ -99,7 +130,7 @@ static void __attribute__ ((destructor)) cleanup(void)
+     }
+ }
+ 
+-int sysfs_read(char *path, char *s, int num_bytes)
++int sysfs_read(const char *path, char *s, int num_bytes)
+ {
+     char buf[80];
+     int count;
+@@ -127,7 +158,7 @@ int sysfs_read(char *path, char *s, int num_bytes)
+     return ret;
+ }
+ 
+-int sysfs_write(char *path, char *s)
++int sysfs_write(const char *path, char *s)
+ {
+     char buf[80];
+     int len;
+@@ -172,13 +203,46 @@ int get_scaling_governor(char governor[], int size)
+     return 0;
+ }
+ 
+-int interaction(int duration, int num_args, int opt_list[])
++int get_scaling_governor_check_cores(char governor[], int size,int core_num)
+ {
+-#ifdef INTERACTION_BOOST
+-    int lock_handle = 0;
+ 
+-    if (duration < 0 || num_args < 1 || opt_list[0] == NULL)
+-        return 0;
++    if (sysfs_read(scaling_gov_path[core_num], governor,
++                size) == -1) {
++        // Can't obtain the scaling governor. Return.
++        return -1;
++    }
++
++    // Strip newline at the end.
++    int len = strlen(governor);
++    len--;
++    while (len >= 0 && (governor[len] == '\n' || governor[len] == '\r'))
++        governor[len--] = '\0';
++
++    return 0;
++}
++
++int is_interactive_governor(char* governor) {
++   if (strncmp(governor, INTERACTIVE_GOVERNOR, (strlen(INTERACTIVE_GOVERNOR)+1)) == 0)
++      return 1;
++   return 0;
++}
++
++int is_ondemand_governor(char* governor) {
++   if (strncmp(governor, ONDEMAND_GOVERNOR, (strlen(ONDEMAND_GOVERNOR)+1)) == 0)
++      return 1;
++   return 0;
++}
++
++#ifndef INTERACTION_BOOST
++void interaction(int UNUSED(duration), int UNUSED(num_args), int UNUSED(opt_list[]))
++{
++#else
++void interaction(int duration, int num_args, int opt_list[])
++{
++    static int lock_handle = 0;
++
++    if (duration < 0 || num_args < 1 || opt_list[0] == 0)
++        return;
+ 
+     if (qcopt_handle) {
+         if (perf_lock_acq) {
+@@ -187,15 +251,17 @@ int interaction(int duration, int num_args, int opt_list[])
+                 ALOGE("Failed to acquire lock.");
+         }
+     }
+-    return lock_handle;
+ #endif
+-    return 0;
+ }
+ 
+-int interaction_with_handle(int lock_handle, int duration, int num_args, int opt_list[]) 
++#ifndef INTERACTION_BOOST
++int interaction_with_handle(int UNUSED(lock_handle), int UNUSED(duration), int UNUSED(num_args), int UNUSED(opt_list[]))
++{
++    return 0;
++#else
++int interaction_with_handle(int lock_handle, int duration, int num_args, int opt_list[])
+ {
+-#ifdef INTERACTION_BOOST
+-    if (duration < 0 || num_args < 1 || opt_list[0] == NULL)
++    if (duration < 0 || num_args < 1 || opt_list[0] == 0)
+         return 0;
+ 
+     if (qcopt_handle) {
+@@ -207,7 +273,41 @@ int interaction_with_handle(int lock_handle, int duration, int num_args, int opt
+     }
+     return lock_handle;
+ #endif
+-    return 0;
++}
++
++//this is interaction_with_handle using perf_hint instead of
++//perf_lock_acq
++int perf_hint_enable(int hint_id , int duration)
++{
++    int lock_handle = 0;
++
++    if (duration < 0)
++        return 0;
++
++    if (qcopt_handle) {
++        if (perf_hint) {
++            lock_handle = perf_hint(hint_id, NULL, duration, -1);
++            if (lock_handle == -1)
++                ALOGE("Failed to acquire lock.");
++        }
++    }
++    return lock_handle;
++}
++
++//Same as perf_hint_enable, but with the ability to
++//choose the type
++int perf_hint_enable_with_type(int hint_id, int duration, int type)
++{
++    int lock_handle = 0;
++
++    if (qcopt_handle) {
++        if (perf_hint) {
++            lock_handle = perf_hint(hint_id, NULL, duration, type);
++            if (lock_handle == -1)
++                ALOGE("Failed to acquire lock.");
++        }
++    }
++    return lock_handle;
+ }
+ 
+ void release_request(int lock_handle) {
+@@ -215,49 +315,49 @@ void release_request(int lock_handle) {
+         perf_lock_rel(lock_handle);
+ }
+ 
+-void perform_hint_action(int hint_id, int resource_values[], int num_resources)
++int perform_hint_action(int hint_id, int resource_values[], int num_resources)
+ {
+-    if (qcopt_handle) {
+-        if (perf_lock_acq) {
+-            /* Acquire an indefinite lock for the requested resources. */
+-            int lock_handle = perf_lock_acq(0, 0, resource_values,
+-                    num_resources);
++    if (qcopt_handle && perf_lock_acq) {
++        /* Acquire an indefinite lock for the requested resources. */
++        int lock_handle = perf_lock_acq(0, 0, resource_values,
++                num_resources);
++
++        if (lock_handle == -1) {
++            ALOGE("Failed to acquire lock.");
++            return -EINVAL;
++        }
+ 
+-            if (lock_handle == -1) {
+-                ALOGE("Failed to acquire lock.");
+-            } else {
+-                /* Add this handle to our internal hint-list. */
+-                struct hint_data *new_hint =
+-                    (struct hint_data *)malloc(sizeof(struct hint_data));
+-
+-                if (new_hint) {
+-                    if (!active_hint_list_head.compare) {
+-                        active_hint_list_head.compare =
+-                            (int (*)(void *, void *))hint_compare;
+-                        active_hint_list_head.dump = (void (*)(void *))hint_dump;
+-                    }
+-
+-                    new_hint->hint_id = hint_id;
+-                    new_hint->perflock_handle = lock_handle;
+-
+-                    if (add_list_node(&active_hint_list_head, new_hint) == NULL) {
+-                        free(new_hint);
+-                        /* Can't keep track of this lock. Release it. */
+-                        if (perf_lock_rel)
+-                            perf_lock_rel(lock_handle);
+-
+-                        ALOGE("Failed to process hint.");
+-                    }
+-                } else {
+-                    /* Can't keep track of this lock. Release it. */
+-                    if (perf_lock_rel)
+-                        perf_lock_rel(lock_handle);
+-
+-                    ALOGE("Failed to process hint.");
+-                }
+-            }
++        /* Add this handle to our internal hint-list. */
++        struct hint_data *new_hint =
++            (struct hint_data *)malloc(sizeof(struct hint_data));
++
++        if (!new_hint) {
++            /* Can't keep track of this lock. Release it. */
++            if (perf_lock_rel)
++                perf_lock_rel(lock_handle);
++            ALOGE("Failed to process hint.");
++            return -ENOMEM;
++        }
++
++        if (!active_hint_list_head.compare) {
++            active_hint_list_head.compare =
++                (int (*)(void *, void *))hint_compare;
++            active_hint_list_head.dump = (void (*)(void *))hint_dump;
++        }
++
++        new_hint->hint_id = hint_id;
++        new_hint->perflock_handle = lock_handle;
++
++        if (add_list_node(&active_hint_list_head, new_hint) == NULL) {
++            free(new_hint);
++            /* Can't keep track of this lock. Release it. */
++            if (perf_lock_rel)
++                perf_lock_rel(lock_handle);
++            ALOGE("Failed to process hint.");
++            return -ENOMEM;
+         }
+     }
++    return 0;
+ }
+ 
+ void undo_hint_action(int hint_id)
+@@ -308,3 +408,33 @@ void undo_initial_hint_action()
+         }
+     }
+ }
++
++long long calc_timespan_us(struct timespec start, struct timespec end)
++{
++    long long diff_in_us = 0;
++    diff_in_us += (end.tv_sec - start.tv_sec) * USINSEC;
++    diff_in_us += (end.tv_nsec - start.tv_nsec) / NSINUS;
++    return diff_in_us;
++}
++
++int get_soc_id(void)
++{
++    int fd;
++    int soc_id = -1;
++    char buf[10] = { 0 };
++
++    if (!access(SOC_ID_0, F_OK))
++        fd = open(SOC_ID_0, O_RDONLY);
++    else
++        fd = open(SOC_ID_1, O_RDONLY);
++
++    if (fd >= 0) {
++        if (read(fd, buf, sizeof(buf) - 1) == -1)
++            ALOGW("Unable to read soc_id");
++        else
++            soc_id = atoi(buf);
++    }
++
++    close(fd);
++    return soc_id;
++}
+diff --git a/power/utils.h b/power/utils.h
+index b2d6d07..5ec0735 100644
+--- a/power/utils.h
++++ b/power/utils.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
++ * Copyright (c) 2012-2013,2015-2017, The Linux Foundation. All rights reserved.
+  *
+  * Redistribution and use in source and binary forms, with or without
+  * modification, are permitted provided that the following conditions are
+@@ -29,15 +29,21 @@
+ 
+ #include <cutils/properties.h>
+ 
+-int sysfs_read(char *path, char *s, int num_bytes);
+-int sysfs_write(char *path, char *s);
++int sysfs_read(const char *path, char *s, int num_bytes);
++int sysfs_write(const char *path, char *s);
+ int get_scaling_governor(char governor[], int size);
++int get_scaling_governor_check_cores(char governor[], int size,int core_num);
++int is_interactive_governor(char*);
++int is_ondemand_governor(char*);
+ 
+-void vote_ondemand_io_busy_off();
+-void unvote_ondemand_io_busy_off();
+-void vote_ondemand_sdf_low();
+-void unvote_ondemand_sdf_low();
+-void perform_hint_action(int hint_id, int resource_values[],
+-    int num_resources);
++int perform_hint_action(int hint_id, int resource_values[], int num_resources);
+ void undo_hint_action(int hint_id);
++void undo_initial_hint_action();
+ void release_request(int lock_handle);
++void interaction(int duration, int num_args, int opt_list[]);
++int interaction_with_handle(int lock_handle, int duration, int num_args, int opt_list[]);
++int perf_hint_enable(int hint_id, int duration);
++int perf_hint_enable_with_type(int hint_id, int duration, int type);
++
++long long calc_timespan_us(struct timespec start, struct timespec end);
++int get_soc_id(void);
+diff --git a/sepolicy/file.te b/sepolicy/file.te
+index 21281a5..217fa51 100644
+--- a/sepolicy/file.te
++++ b/sepolicy/file.te
+@@ -38,6 +38,8 @@ type nanohub_lock_file, file_type, data_file_type, core_data_file_type;
+ type sysfs_wifi_sar, fs_type, sysfs_type;
+ type sysfs_lcd_mipi, fs_type, sysfs_type;
+ 
++type debugfs_rpm, debugfs_type, fs_type;
++
+ type nfc_vendor_data_file, file_type, data_file_type;
+ 
+ # type for mtp
+diff --git a/sepolicy/file_contexts b/sepolicy/file_contexts
+index 564a52f..b3a3481 100644
+--- a/sepolicy/file_contexts
++++ b/sepolicy/file_contexts
+@@ -131,6 +131,7 @@
+ /vendor/bin/cnd                          u:object_r:cnd_exec:s0
+ /vendor/bin/hw/android\.hardware\.dumpstate@1\.0-service.angler      u:object_r:hal_dumpstate_default_exec:s0
+ /vendor/bin/hw/android\.hardware\.health@2\.0-service\.angler    u:object_r:hal_health_default_exec:s0
++/vendor/bin/hw/android\.hardware\.power@1\.1-service.angler      u:object_r:hal_power_default_exec:s0
+ /vendor/bin/imscmservice                 u:object_r:ims_exec:s0
+ /vendor/bin/imsdatadaemon                u:object_r:ims_exec:s0
+ /vendor/bin/imsqmidaemon                 u:object_r:ims_exec:s0
+diff --git a/sepolicy/genfs_contexts b/sepolicy/genfs_contexts
+index caa4bda..7b8c44a 100644
+--- a/sepolicy/genfs_contexts
++++ b/sepolicy/genfs_contexts
+@@ -11,3 +11,8 @@ genfscon proc /sys/kernel/sched_small_task            u:object_r:proc_kernel_sch
+ genfscon proc /sys/kernel/sched_upmigrate             u:object_r:proc_kernel_sched:s0
+ 
+ genfscon sysfs /devices/soc.0/f9824900.sdhci/mmc_host/mmc0/mmc0:0001/block/mmcblk0/stat       u:object_r:sysfs_disk_stat:s0
++
++# debugfs
++genfscon debugfs /rpm_stats                           u:object_r:debugfs_rpm:s0
++genfscon debugfs /rpm_master_stats                    u:object_r:debugfs_rpm:s0
++genfscon debugfs /system_stats                        u:object_r:debugfs_rpm:s0
+diff --git a/sepolicy/hal_power_default.te b/sepolicy/hal_power_default.te
+new file mode 100644
+index 0000000..058d549
+--- /dev/null
++++ b/sepolicy/hal_power_default.te
+@@ -0,0 +1 @@
++allow hal_power_default debugfs_rpm:file { open read getattr };

@@ -1,0 +1,40 @@
+From 5a1d6168ab1f2571772d77b5defa809b6b129cd5 Mon Sep 17 00:00:00 2001
+From: Peter Collingbourne <pcc@google.com>
+Date: Thu, 25 Apr 2019 23:27:18 -0700
+Subject: [PATCH] angler: Add /apex/com.android.runtime/${LIB} to runtime
+ search path.
+
+The canonical location of the HWASAN runtime, an LL-NDK library, is being moved
+to the runtime APEX. It is apparently the first LL-NDK library in the runtime
+APEX that does not require a legacy symlink in /system/${LIB}. Therefore we
+need to add the runtime APEX's ${LIB} directory to the various search paths
+used by the linker so that the library can be loaded from the default and
+sphal namespaces.
+
+Bug: http://b/134459232
+Test: Builds
+
+Change-Id: I1f63e1a2a61e1717d00736ef431f3ec2a9334193
+Merged-In: I1f63e1a2a61e1717d00736ef431f3ec2a9334193
+(cherry picked from commit 61f5fdf5c907f83f777395b7ebd45432855b5e7b)
+---
+ configs/ld.config.txt | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/configs/ld.config.txt b/configs/ld.config.txt
+index 0d3ab21..29a600d 100644
+--- a/configs/ld.config.txt
++++ b/configs/ld.config.txt
+@@ -37,9 +37,11 @@ namespace.default.link.platform.shared_libs = libEGL.so:libGLESv1_CM.so:libGLESv
+ 
+ namespace.platform.isolated = true
+ 
+-namespace.platform.search.paths = /system/${LIB}
++namespace.platform.search.paths  = /system/${LIB}
++namespace.platform.search.paths += /apex/com.android.runtime/${LIB}
+ namespace.platform.asan.search.paths  = /data/asan/system/${LIB}
+ namespace.platform.asan.search.paths +=           /system/${LIB}
++namespace.platform.asan.search.paths += /apex/com.android.runtime/${LIB}
+ 
+ # /system/lib/libc.so, etc are symlinks to /apex/com.android.lib/lib/bionic/libc.so, etc.
+ # Add /apex/... pat to the permitted paths because linker uses realpath(3)

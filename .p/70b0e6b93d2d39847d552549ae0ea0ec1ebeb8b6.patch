@@ -1,0 +1,117 @@
+From 70b0e6b93d2d39847d552549ae0ea0ec1ebeb8b6 Mon Sep 17 00:00:00 2001
+From: Anay Wadhera <anay1018@gmail.com>
+Date: Tue, 24 Sep 2019 23:17:37 -0700
+Subject: [PATCH] angler: allow executing vendor toolbox
+
+Change-Id: I5f86ef769ef5992356eb195241226bec8d632504
+---
+ sepolicy/init-devstart-sh.te | 4 ++--
+ sepolicy/init-devwait-sh.te  | 4 ++--
+ sepolicy/init-mcfg-sh.te     | 4 ++--
+ sepolicy/init-power-sh.te    | 4 ++--
+ sepolicy/init-qseecomd-sh.te | 4 ++--
+ sepolicy/init-radio-sh.te    | 4 ++--
+ 6 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/sepolicy/init-devstart-sh.te b/sepolicy/init-devstart-sh.te
+index 6394783..8a9cd54 100644
+--- a/sepolicy/init-devstart-sh.te
++++ b/sepolicy/init-devstart-sh.te
+@@ -3,10 +3,10 @@ type init-qcom-devstart-sh_exec, exec_type, file_type, vendor_file_type;
+ 
+ init_daemon_domain(init-qcom-devstart-sh)
+ 
+-allow init-qcom-devstart-sh shell_exec:file rx_file_perms;
++allow init-qcom-devstart-sh vendor_shell_exec:file rx_file_perms;
+ 
+ # execute toybox/toolbox
+-allow init-qcom-devstart-sh toolbox_exec:file rx_file_perms;
++allow init-qcom-devstart-sh vendor_toolbox_exec:file rx_file_perms;
+ 
+ # Set the sys.qcom.devup property
+ set_prop(init-qcom-devstart-sh, system_prop)
+diff --git a/sepolicy/init-devwait-sh.te b/sepolicy/init-devwait-sh.te
+index c960b16..8b36671 100644
+--- a/sepolicy/init-devwait-sh.te
++++ b/sepolicy/init-devwait-sh.te
+@@ -3,7 +3,7 @@ type init-qcom-devwait-sh_exec, exec_type, file_type, vendor_file_type;
+ 
+ init_daemon_domain(init-qcom-devwait-sh)
+ 
+-allow init-qcom-devwait-sh shell_exec:file rx_file_perms;
++allow init-qcom-devwait-sh vendor_shell_exec:file rx_file_perms;
+ 
+ # execute toybox/toolbox
+-allow init-qcom-devwait-sh toolbox_exec:file rx_file_perms;
++allow init-qcom-devwait-sh vendor_toolbox_exec:file rx_file_perms;
+diff --git a/sepolicy/init-mcfg-sh.te b/sepolicy/init-mcfg-sh.te
+index 76e0d53..7b47b01 100644
+--- a/sepolicy/init-mcfg-sh.te
++++ b/sepolicy/init-mcfg-sh.te
+@@ -3,7 +3,7 @@ type init-mcfg-sh_exec, exec_type, file_type, vendor_file_type;
+ 
+ init_daemon_domain(init-mcfg-sh)
+ 
+-allow init-mcfg-sh shell_exec:file rx_file_perms;
++allow init-mcfg-sh vendor_shell_exec:file rx_file_perms;
+ 
+ # remove and create /data/misc/radio/modem_config
+ allow init-mcfg-sh radio_data_file:dir create_dir_perms;
+@@ -13,7 +13,7 @@ allow init-mcfg-sh firmware_file:dir r_dir_perms;
+ allow init-mcfg-sh firmware_file:file r_file_perms;
+ 
+ # execute toybox/toolbox
+-allow init-mcfg-sh toolbox_exec:file rx_file_perms;
++allow init-mcfg-sh vendor_toolbox_exec:file rx_file_perms;
+ 
+ allow init-mcfg-sh vfat:dir { search read open };
+ allow init-mcfg-sh vfat:file { getattr open read };
+diff --git a/sepolicy/init-power-sh.te b/sepolicy/init-power-sh.te
+index f06de9d..d0bd2b6 100644
+--- a/sepolicy/init-power-sh.te
++++ b/sepolicy/init-power-sh.te
+@@ -3,7 +3,7 @@ type init-power-sh_exec, exec_type, file_type, vendor_file_type;
+ 
+ init_daemon_domain(init-power-sh)
+ 
+-allow init-power-sh shell_exec:file r_file_perms;
++allow init-power-sh vendor_shell_exec:file r_file_perms;
+ allow init-power-sh sysfs_devices_system_cpu:file w_file_perms;
+ allow init-power-sh sysfs_performance:dir r_dir_perms;
+ allow init-power-sh sysfs_performance:file w_file_perms;
+@@ -21,4 +21,4 @@ allow init-power-sh sysfs:file rw_file_perms;
+ allow init-power-sh sysfs_usb:file w_file_perms;
+ 
+ # execute toybox/toolbox
+-allow init-power-sh toolbox_exec:file rx_file_perms;
++allow init-power-sh vendor_toolbox_exec:file rx_file_perms;
+diff --git a/sepolicy/init-qseecomd-sh.te b/sepolicy/init-qseecomd-sh.te
+index 92e3444..a3ccaf2 100644
+--- a/sepolicy/init-qseecomd-sh.te
++++ b/sepolicy/init-qseecomd-sh.te
+@@ -3,7 +3,7 @@ type init-angler-qseecomd-sh_exec, exec_type, file_type, vendor_file_type;
+ 
+ init_daemon_domain(init-angler-qseecomd-sh)
+ 
+-allow init-angler-qseecomd-sh shell_exec:file rx_file_perms;
++allow init-angler-qseecomd-sh vendor_shell_exec:file rx_file_perms;
+ 
+ # execute toybox/toolbox
+-allow init-angler-qseecomd-sh toolbox_exec:file rx_file_perms;
++allow init-angler-qseecomd-sh vendor_toolbox_exec:file rx_file_perms;
+diff --git a/sepolicy/init-radio-sh.te b/sepolicy/init-radio-sh.te
+index ebaffe9..7d8ce6b 100644
+--- a/sepolicy/init-radio-sh.te
++++ b/sepolicy/init-radio-sh.te
+@@ -4,9 +4,9 @@ type init-radio-sh_exec, exec_type, file_type, vendor_file_type;
+ 
+ init_daemon_domain(init-radio-sh)
+ 
+-allow init-radio-sh shell_exec:file rx_file_perms;
++allow init-radio-sh vendor_shell_exec:file rx_file_perms;
+ 
+-allow init-radio-sh toolbox_exec:file rx_file_perms;
++allow init-radio-sh vendor_toolbox_exec:file rx_file_perms;
+ 
+ allow init-radio-sh radio_data_file:dir rw_dir_perms;
+ allow init-radio-sh radio_data_file:file create_file_perms;

@@ -1,0 +1,82 @@
+From 742d33eb3e63d3874b49074f11382de4f234c4b8 Mon Sep 17 00:00:00 2001
+From: Anay Wadhera <awadhera@berkeley.edu>
+Date: Fri, 3 Apr 2020 11:53:03 -0700
+Subject: [PATCH] angler: use vendor.qcom.devup instead of sys.qcom.devup
+
+Change-Id: I8fe9951578dc2182c992f8019900d84ec90b2114
+---
+ init.qcom.devstart.sh               | 2 +-
+ init.qcom.devwait.sh                | 4 ++--
+ sepolicy/vendor/init-devstart-sh.te | 4 ++--
+ sepolicy/vendor/init-devwait-sh.te  | 1 +
+ sepolicy/vendor/property.te         | 1 +
+ sepolicy/vendor/property_contexts   | 1 +
+ 6 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/init.qcom.devstart.sh b/init.qcom.devstart.sh
+index 798b9eb..0a53d71 100755
+--- a/init.qcom.devstart.sh
++++ b/init.qcom.devstart.sh
+@@ -1,4 +1,4 @@
+ #!/vendor/bin/sh
+ 
+ echo 1 > /sys/kernel/boot_adsp/boot
+-setprop sys.qcom.devup 1
++setprop vendor.qcom.devup 1
+diff --git a/init.qcom.devwait.sh b/init.qcom.devwait.sh
+index 0154a87..cc66723 100755
+--- a/init.qcom.devwait.sh
++++ b/init.qcom.devwait.sh
+@@ -1,8 +1,8 @@
+ #!/vendor/bin/sh
+ 
+-up="`getprop sys.qcom.devup`"
++up="`getprop vendor.qcom.devup`"
+ while [ "$up" != "1" ]
+ do
+     sleep 0.1
+-    up="`getprop sys.qcom.devup`"
++    up="`getprop vendor.qcom.devup`"
+ done
+diff --git a/sepolicy/vendor/init-devstart-sh.te b/sepolicy/vendor/init-devstart-sh.te
+index 5e5639e..0d7d856 100644
+--- a/sepolicy/vendor/init-devstart-sh.te
++++ b/sepolicy/vendor/init-devstart-sh.te
+@@ -8,8 +8,8 @@ allow init-qcom-devstart-sh vendor_shell_exec:file rx_file_perms;
+ # execute toybox/toolbox
+ allow init-qcom-devstart-sh vendor_toolbox_exec:file rx_file_perms;
+ 
+-# Set the sys.qcom.devup property
+-set_prop(init-qcom-devstart-sh, system_prop)
++# Set the vendor.qcom.devup property
++set_prop(init-qcom-devstart-sh, vendor_device_prop)
+ 
+ # Set boot_adsp and boot_slpi to 1
+ allow init-qcom-devstart-sh sysfs_msm_subsys:file w_file_perms;
+diff --git a/sepolicy/vendor/init-devwait-sh.te b/sepolicy/vendor/init-devwait-sh.te
+index 17afe82..5c599ee 100644
+--- a/sepolicy/vendor/init-devwait-sh.te
++++ b/sepolicy/vendor/init-devwait-sh.te
+@@ -9,3 +9,4 @@ allow init-qcom-devwait-sh vendor_shell_exec:file rx_file_perms;
+ allow init-qcom-devwait-sh vendor_toolbox_exec:file rx_file_perms;
+ 
+ allow init-qcom-devwait-sh vendor_file:dir read;
++get_prop(init-qcom-devwait-sh, vendor_device_prop)
+diff --git a/sepolicy/vendor/property.te b/sepolicy/vendor/property.te
+index e00bd87..4b63eae 100644
+--- a/sepolicy/vendor/property.te
++++ b/sepolicy/vendor/property.te
+@@ -2,3 +2,4 @@ type contexthub_prop, property_type;
+ type ctl_ppd_prop, property_type;
+ type qcom_ims_prop, property_type;
+ type radio_atfwd_prop, property_type;
++type vendor_device_prop, property_type;
+diff --git a/sepolicy/vendor/property_contexts b/sepolicy/vendor/property_contexts
+index a26c573..8c92c70 100644
+--- a/sepolicy/vendor/property_contexts
++++ b/sepolicy/vendor/property_contexts
+@@ -3,3 +3,4 @@ radio.atfwd.         u:object_r:radio_atfwd_prop:s0
+ sensors.contexthub.  u:object_r:contexthub_prop:s0
+ sys.ims.             u:object_r:qcom_ims_prop:s0
+ net.r_rmnet          u:object_r:net_radio_prop:s0
++vendor.qcom.devup    u:object_r:vendor_device_prop:s0
