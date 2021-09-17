@@ -79,20 +79,18 @@ on boot
     # add a cpuset for the camera daemon
     # we want all the little cores for camera
     mkdir /dev/cpuset/camera-daemon
-    write /dev/cpuset/camera-daemon/cpus 0
+    write /dev/cpuset/camera-daemon/cpus 0-3
     write /dev/cpuset/camera-daemon/mems 0
     chown system system /dev/cpuset/camera-daemon
     chown system system /dev/cpuset/camera-daemon/tasks
     chmod 0664 /dev/cpuset/camera-daemon/tasks
 
     # update foreground cpuset now that processors are up
-    # reserve CPU 3 for the top app and camera daemon
-    write /dev/cpuset/foreground/cpus 0-2,4-7
-    write /dev/cpuset/background/cpus 0
-    write /dev/cpuset/system-background/cpus 0-2
-    write /dev/cpuset/top-app/cpus 0-7
-    write /dev/cpuset/camera-daemon/cpus 0-3
-    write /dev/cpuset/restricted/cpus 0-1
+    write /dev/cpuset/foreground/cpus 0-3
+    write /dev/cpuset/background/cpus 0-3
+    write /dev/cpuset/system-background/cpus 0-3
+    write /dev/cpuset/top-app/cpus 0-3
+    write /dev/cpuset/restricted/cpus 0-3
 
     # setup permissions for fb0 related nodes
     chown radio radio /sys/class/graphics/fb0/dynamic_dsitiming
@@ -283,6 +281,7 @@ on post-fs-data
     chmod 0660 /sys/devices/system/cpu/cpu6/online
     chown system system /sys/devices/system/cpu/cpu7/online
     chmod 0660 /sys/devices/system/cpu/cpu7/online
+
 on charger
    #set cpu4,5 online first, or they can't get into low power consumption mode
    write /sys/devices/system/cpu/cpu4/online 1
@@ -301,6 +300,14 @@ on charger
    write /sys/devices/system/cpu/cpu7/online 0
 
 on property:sys.boot_completed=1
+    # update foreground cpuset now that processors are up
+    # reserve CPU 3 for the top app and camera daemon
+    write /dev/cpuset/foreground/cpus 0-2,4-5
+    write /dev/cpuset/background/cpus 0
+    write /dev/cpuset/system-background/cpus 0-2
+    write /dev/cpuset/top-app/cpus 0-7
+    write /dev/cpuset/restricted/cpus 0-3
+    
      #allow CPUs to go in deeper idle state than C0
      write /sys/module/lpm_levels/parameters/sleep_disabled 0
      #end boot time fs tune
