@@ -28,6 +28,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
 
 # Display
 PRODUCT_PROPERTY_OVERRIDES += \
+	debug.sf.enable_gl_backpressure=1 \
     ro.opengles.version=196610 \
     ro.sf.lcd_density=560 \
     persist.hwc.mdpcomp.enable=true
@@ -63,6 +64,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
 
 # Media
 PRODUCT_PROPERTY_OVERRIDES += \
+	debug.stagefright.ccodec=0 \
     persist.media.treble_omx=false \
     media.aac_51_output_enabled=true \
     media.recorder.show_manufacturer_and_model=true \
@@ -114,7 +116,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.surface_flinger.max_virtual_display_dimension=2048 \
     ro.surface_flinger.vsync_event_phase_offset_ns=2000000 \
     ro.surface_flinger.vsync_sf_event_phase_offset_ns=6000000
-	
+
 # Telephony
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.telephony.default_cdma_sub=0 \
