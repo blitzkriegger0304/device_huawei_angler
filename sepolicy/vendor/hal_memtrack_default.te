@@ -1,6 +1,8 @@
-allow hal_memtrack_default hal_configstore_default:file read;
-allow hal_memtrack_default hwservicemanager:file read;
-allow hal_memtrack_default idmap:file read;
-allow hal_memtrack_default servicemanager:file read;
-allow hal_memtrack_default system_app:file read;
-allow hal_memtrack_default vndservicemanager:file read;
+r_dir_file(hal_memtrack_default, debugfs)
+r_dir_file(hal_memtrack_default, hal_configstore_default)
+r_dir_file(hal_memtrack_default, hwservicemanager)
+r_dir_file(hal_memtrack_default, idmap)
+r_dir_file(hal_memtrack_default, servicemanager)
+r_dir_file(hal_memtrack_default, surfaceflinger)
+r_dir_file(hal_memtrack_default, system_app)
+r_dir_file(hal_memtrack_default, vndservicemanager)
