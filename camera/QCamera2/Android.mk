@@ -1,9 +1,6 @@
-ifneq (,$(filter $(TARGET_ARCH), arm arm64))
-
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
-
 
 LOCAL_CLANG := true
 
@@ -64,8 +61,7 @@ LOCAL_C_INCLUDES += \
         frameworks/native/include/media/hardware \
         device/huawei/angler/camera/QCamera2/HAL
 
-LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
-LOCAL_ADDITIONAL_DEPENDENCIES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
+LOCAL_HEADER_LIBRARIES := generated_kernel_headers
 
 #LOCAL_STATIC_LIBRARIES := libqcamera2_util
 LOCAL_C_INCLUDES += \
@@ -89,4 +85,3 @@ include $(BUILD_SHARED_LIBRARY)
 
 include $(call first-makefiles-under,$(LOCAL_PATH))
 
-endif
