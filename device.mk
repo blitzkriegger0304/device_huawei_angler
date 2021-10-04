@@ -155,10 +155,6 @@ $(call inherit-product, $(LOCAL_PATH)/utils.mk)
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/msm_irqbalance.conf:$(TARGET_COPY_OUT_VENDOR)/etc/msm_irqbalance.conf
 
-# Qseecomd configuration file
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/init.angler.qseecomd.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.angler.qseecomd.sh
-
 PRODUCT_TAGS += dalvik.gc.type-precise
 
 # This device is 560dpi.  However the platform doesn't

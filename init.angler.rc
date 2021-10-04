@@ -174,9 +174,6 @@ on property:sys.shutdown.requested=*
     stop per_proxy
 
 on post-fs
-    start qseecomd
-    # Busy loop to wait for qseecomd started
-    exec - root root system -- /vendor/bin/init.angler.qseecomd.sh
     # Start devices by sysfs trigger
     start devstart_sh
 
@@ -410,7 +407,7 @@ service loc_launcher /vendor/bin/loc_launcher
 
 # bugreport is triggered by holding down volume down, volume up and power
 service bugreport /system/bin/dumpstate -d -p -B -z \
-        -o /data/user_de/0/com.android.shell/files/bugreports/bugreport
+        -o /data/data/com.android.shell/files/bugreports/bugreport
     class main
     disabled
     oneshot
