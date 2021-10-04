@@ -23,4 +23,4 @@
 /dev/block/bootdevice/by-name/keymaster    /keymaster     emmc    defaults                                                        defaults
 /dev/block/bootdevice/by-name/cmnlib       /cmnlib        emmc    defaults                                                        defaults
 /devices/*/xhci-hcd.0.auto/usb*                               auto           auto    defaults                                                        voldmanaged=usb:auto
-/dev/block/zram0                                              none           swap    defaults                                                        zramsize=533413200,notrim
+/dev/block/zram0                                              none           swap    defaults                                                        zramsize=536870912,notrim,max_comp_streams=8
