@@ -53,6 +53,9 @@ PRODUCT_PROPERTY_OVERRIDES += \
 PRODUCT_PROPERTY_OVERRIDES += \
     debug.sf.latch_unsignaled=1
 
+# Disable SF backpressure
+    debug.sf.disable_backpressure=1
+
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.opengles.version=196610
 
