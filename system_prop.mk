@@ -35,7 +35,9 @@ PRODUCT_PROPERTY_OVERRIDES += \
 # is_type: sets image stabilization type
 PRODUCT_PROPERTY_OVERRIDES += \
     persist.camera.eis.enable=1 \
-    persist.camera.is_type=4
+    persist.camera.is_type=4 \
+    persist.vendor.camera.privapp.list=org.lineageos.snap,com.google.android.GoogleCamera \
+    vendor.camera.aux.packagelist=org.lineageos.snap,com.google.android.GoogleCamera
 
 ##### DALVIK VM #####
 
