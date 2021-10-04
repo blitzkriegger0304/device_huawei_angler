@@ -156,6 +156,10 @@ PRODUCT_PROPERTY_OVERRIDES += \
     persist.radio.data_con_rprt=true \
     persist.data.mode=concurrent
 
+# Disable radio power savvving
+PRODUCT_PROPERTY_OVERRIDES += \
+    persist.radio.add_power_save=0
+
 # Setup custom emergency number list based on the MCC. This is needed by RIL
 PRODUCT_PROPERTY_OVERRIDES += \
     persist.radio.custom_ecc=1
