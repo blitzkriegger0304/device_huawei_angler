@@ -19,7 +19,7 @@
 # $(call inherit-product, device/sample/products/backup_overlay.mk)
 
 # Get the long list of APNs
-PRODUCT_COPY_FILES := device/huawei/angler/apns-full-conf.xml:system/etc/apns-conf.xml
+PRODUCT_COPY_FILES := $(LOCAL_PATH)/apns-full-conf.xml:system/etc/apns-conf.xml
 
 # Inherit from the common Open Source product configuration
 $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
@@ -40,7 +40,7 @@ PRODUCT_MANUFACTURER := Huawei
 PRODUCT_RESTRICT_VENDOR_FILES := false
 
 # Inherit from Device/Vendor
-$(call inherit-product, device/huawei/angler/device.mk)
+$(call inherit-product, $(LOCAL_PATH)/device.mk)
 $(call inherit-product-if-exists, vendor/huawei/angler/device-vendor.mk)
 
 # Device Fingerprint

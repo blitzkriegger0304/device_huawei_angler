@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+DEVICE_PATH := device/huawei/angler
+
 BUILD_BROKEN_DUP_RULES := true
 
 TARGET_BOARD_PLATFORM := msm8994
@@ -60,17 +63,17 @@ AUDIO_FEATURE_ENABLED_MULTI_VOICE_SESSIONS := true
 
 BOARD_HAVE_BLUETOOTH := true
 BOARD_HAVE_BLUETOOTH_BCM := true
-BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := device/huawei/angler/bluetooth
-BOARD_CUSTOM_BT_CONFIG := device/huawei/angler/bluetooth/vnd_angler.txt
+BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := $(DEVICE_PATH)/bluetooth
+BOARD_CUSTOM_BT_CONFIG := $(DEVICE_PATH)/bluetooth/vnd_angler.txt
 
 BOARD_USES_SECURE_SERVICES := true
 
 TARGET_NO_BOOTLOADER := true
 TARGET_NO_RADIOIMAGE := true
-TARGET_BOARD_INFO_FILE := device/huawei/angler/board-info.txt
+TARGET_BOARD_INFO_FILE := $(DEVICE_PATH)/board-info.txt
 TARGET_NO_RPC := true
 
-BOARD_EGL_CFG := device/huawei/angler/egl.cfg
+BOARD_EGL_CFG := $(DEVICE_PATH)/egl.cfg
 
 # Shader cache config options
 # Maximum size of the  GLES Shaders that can be cached for reuse.
@@ -124,16 +127,16 @@ TARGET_USES_MKE2FS := true
 
 TARGET_AUX_OS_VARIANT_LIST := angler
 
-TARGET_RECOVERY_FSTAB = device/huawei/angler/recovery.fstab
+TARGET_RECOVERY_FSTAB = $(DEVICE_PATH)/recovery.fstab
 TARGET_COPY_OUT_VENDOR := vendor
-TARGET_RELEASETOOLS_EXTENSIONS := device/huawei/angler
+TARGET_RELEASETOOLS_EXTENSIONS := $(DEVICE_PATH)
 
 BOARD_ROOT_EXTRA_FOLDERS := firmware persist
 
 SELINUX_IGNORE_NEVERALLOWS := true
 SELINUX_IGNORE_NEVERALLOWS_ON_USER := true
-BOARD_SEPOLICY_DIRS += device/huawei/angler/sepolicy/vendor
-BOARD_PLAT_PRIVATE_SEPOLICY_DIR += device/huawei/angler/sepolicy/private
+BOARD_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy/vendor
+BOARD_PLAT_PRIVATE_SEPOLICY_DIR += $(DEVICE_PATH)/sepolicy/private
 
 TARGET_USES_64_BIT_BINDER := true
 
@@ -173,10 +176,10 @@ TARGET_ADDITIONAL_GRALLOC_10_USAGE_BITS := 0x2000U | 0x02000000U
 # Testing related defines
 BOARD_PERFSETUP_SCRIPT := platform_testing/scripts/perf-setup/angler-setup.sh
 
-TARGET_FS_CONFIG_GEN += device/huawei/angler/config.fs
+TARGET_FS_CONFIG_GEN += $(DEVICE_PATH)/config.fs
 
-DEVICE_MANIFEST_FILE := device/huawei/angler/manifest.xml
-DEVICE_MATRIX_FILE := device/huawei/angler/compatibility_matrix.xml
+DEVICE_MANIFEST_FILE := $(DEVICE_PATH)/manifest.xml
+DEVICE_MATRIX_FILE := $(DEVICE_PATH)/compatibility_matrix.xml
 
 # Enable workaround for slow rom flash
 BOARD_SUPPRESS_SECURE_ERASE := true
