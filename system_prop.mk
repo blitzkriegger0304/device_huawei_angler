@@ -93,6 +93,10 @@ PRODUCT_PROPERTY_OVERRIDES += \
 
 ##### MEDIA #####
 
+# Disable codec2
+PRODUCT_PROPERTY_OVERRIDES += \
+    debug.stagefright.ccodec=0 
+
 # Default OMX service to non-Treble
 PRODUCT_PROPERTY_OVERRIDES += \
     persist.media.treble_omx=false
