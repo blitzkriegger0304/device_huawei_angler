@@ -19,7 +19,7 @@
 # $(call inherit-product, device/sample/products/backup_overlay.mk)
 
 # Get the long list of APNs
-PRODUCT_COPY_FILES := $(LOCAL_PATH)/apns-full-conf.xml:system/etc/apns-conf.xml
+PRODUCT_COPY_FILES := $(LOCAL_PATH)/configs/apns-full-conf.xml:system/etc/apns-conf.xml
 
 # Inherit from the common Open Source product configuration
 $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)

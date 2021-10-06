@@ -52,7 +52,7 @@ PRODUCT_COPY_FILES += \
 
 # Thermal configuration
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/thermal-engine-angler.conf:$(TARGET_COPY_OUT_SYSTEM)/etc/thermal-engine.conf
+    $(LOCAL_PATH)/configs/thermal-engine-angler.conf:$(TARGET_COPY_OUT_SYSTEM)/etc/thermal-engine.conf
 
 # Media
 PRODUCT_COPY_FILES += \
@@ -95,7 +95,7 @@ PRODUCT_PACKAGES += \
     fingerprint.angler 
 
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/sec_config:$(TARGET_COPY_OUT_VENDOR)/etc/sec_config
+    $(LOCAL_PATH)/configs/sec_config:$(TARGET_COPY_OUT_VENDOR)/etc/sec_config
 
 # Wifi
 PRODUCT_COPY_FILES += \
@@ -149,7 +149,7 @@ $(call inherit-product, $(LOCAL_PATH)/utils.mk)
 
 # MSM IRQ Balancer configuration file
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/msm_irqbalance.conf:$(TARGET_COPY_OUT_VENDOR)/etc/msm_irqbalance.conf
+    $(LOCAL_PATH)/configs/msm_irqbalance.conf:$(TARGET_COPY_OUT_VENDOR)/etc/msm_irqbalance.conf
 
 PRODUCT_TAGS += dalvik.gc.type-precise
 
@@ -328,7 +328,7 @@ $(call inherit-product-if-exists, hardware/broadcom/wlan/bcmdhd/firmware/bcm4358
 
 # GPS configuration
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/gps.conf:$(TARGET_COPY_OUT_SYSTEM)/etc/gps.conf:qcom
+    $(LOCAL_PATH)/configs/gps.conf:$(TARGET_COPY_OUT_SYSTEM)/etc/gps.conf:qcom
 
 # services for encryption
 PRODUCT_PACKAGES += \
