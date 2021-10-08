@@ -25,30 +25,30 @@ $(LOCAL_PATH) := device/huawei/angler
 TARGET_USES_CHINOOK_SENSORHUB := false
 
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/init.angler.rc:root/init.angler.rc \
-    $(LOCAL_PATH)/init.angler.usb.rc:root/init.angler.usb.rc \
-    $(LOCAL_PATH)/fstab.angler:root/fstab.angler \
-    $(LOCAL_PATH)/ueventd.angler.rc:root/ueventd.angler.rc \
-    $(LOCAL_PATH)/init.recovery.angler.rc:root/init.recovery.angler.rc \
-    $(LOCAL_PATH)/init.angler.power.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.angler.power.sh \
+    $(LOCAL_PATH)/rootdir/etc/init.angler.rc:root/init.angler.rc \
+    $(LOCAL_PATH)/rootdir/etc/init.angler.usb.rc:root/init.angler.usb.rc \
+    $(LOCAL_PATH)/rootdir/etc/fstab.angler:root/fstab.angler \
+    $(LOCAL_PATH)/rootdir/etc/ueventd.angler.rc:root/ueventd.angler.rc \
+    $(LOCAL_PATH)/rootdir/etc/init.recovery.angler.rc:root/init.recovery.angler.rc \
+    $(LOCAL_PATH)/rootdir/bin/init.angler.power.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.angler.power.sh \
     $(LOCAL_PATH)/keylayout/uinput-fpc.kl:$(TARGET_COPY_OUT_SYSTEM)/usr/keylayout/uinput-fpc.kl \
     $(LOCAL_PATH)/keylayout/uinput-fpc.idc:$(TARGET_COPY_OUT_SYSTEM)/usr/idc/uinput-fpc.idc \
-    $(LOCAL_PATH)/init.qcom.devwait.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.qcom.devwait.sh \
-    $(LOCAL_PATH)/init.qcom.devstart.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.qcom.devstart.sh
+    $(LOCAL_PATH)/rootdir/bin/init.qcom.devwait.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.qcom.devwait.sh \
+    $(LOCAL_PATH)/rootdir/bin/init.qcom.devstart.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.qcom.devstart.sh
 
 ifeq ($(TARGET_USES_CHINOOK_SENSORHUB),true)
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/init.angler.sensorhub.rc:root/init.angler.sensorhub.rc
+    $(LOCAL_PATH)/rootdir/etc/init.angler.sensorhub.rc:root/init.angler.sensorhub.rc
 else
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/init.angler.nanohub.rc:root/init.angler.sensorhub.rc
+    $(LOCAL_PATH)/rootdir/etc/init.angler.nanohub.rc:root/init.angler.sensorhub.rc
 endif
 
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/init.mcfg.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.mcfg.sh
+    $(LOCAL_PATH)/rootdir/bin/init.mcfg.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.mcfg.sh
 
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/init.radio.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.radio.sh
+    $(LOCAL_PATH)/rootdir/bin/init.radio.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.radio.sh
 
 # Thermal configuration
 PRODUCT_COPY_FILES += \

@@ -203,7 +203,7 @@ PRODUCT_PACKAGES += \
 endif # lineage_angler
 
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/init.angler.diag.rc.userdebug:root/init.angler.diag.rc
+    $(LOCAL_PATH)/rootdir/etc/init.angler.diag.rc.userdebug:root/init.angler.diag.rc
 
 ##### SUBSYSTEM RAMDUMP COLLECTON #####
 
@@ -211,7 +211,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
     persist.sys.ssr.enable_ramdumps=0
 else # userdebug eng
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/init.angler.diag.rc.user:root/init.angler.diag.rc
+    $(LOCAL_PATH)/rootdir/etc/init.angler.diag.rc.user:root/init.angler.diag.rc
 endif # userdebug eng
 
 ##### SUBSYSTEM RESTART #####
