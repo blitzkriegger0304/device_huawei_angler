@@ -206,7 +206,7 @@ PRODUCT_PACKAGES += \
     mm-qcamera-app
 
 # GoogleCamera
-$(call inherit-product, packages/apps/GoogleCamera/gcam.mk)
+# $(call inherit-product, packages/apps/GoogleCamera/gcam.mk)
 
 # GPS
 PRODUCT_PACKAGES += \
