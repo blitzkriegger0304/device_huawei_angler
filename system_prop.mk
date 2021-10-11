@@ -37,8 +37,8 @@ PRODUCT_PROPERTY_OVERRIDES += \
     persist.camera.eis.enable=1 \
     persist.camera.is_type=4 \
     persist.camera.cpp.duplication=false \
-    persist.vendor.camera.privapp.list=org.lineageos.snap,com.google.android.GoogleCamera \
-    vendor.camera.aux.packagelist=org.lineageos.snap,com.google.android.GoogleCamera
+    persist.vendor.camera.privapp.list=org.lineageos.snap\
+    vendor.camera.aux.packagelist=org.lineageos.snap
 
 ##### DALVIK VM #####
 
