@@ -202,8 +202,8 @@ PRODUCT_PACKAGES += \
     libmmcamera_interface \
     libmmcamera_interface2 \
     libmmjpeg_interface \
-    libqomx_core \
-    mm-qcamera-app
+    libqomx_core 
+    
 
 # GoogleCamera
 # $(call inherit-product, packages/apps/GoogleCamera/gcam.mk)
